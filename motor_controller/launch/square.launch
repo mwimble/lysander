@@ -1,0 +1,7 @@
+<launch>
+	<arg name="square_debug" default="false" />
+	<arg if="$(arg square_debug)" name="launch_prefix" value="xterm -e gdb --args" />
+	<arg unless="$(arg square_debug)" name="launch_prefix" value="" />
+	<node pkg="farryn_controller" name="squareTest" type="square_node" respawn="false" output="screen" launch-prefix="$(arg launch_prefix)" >
+	</node>
+</launch>

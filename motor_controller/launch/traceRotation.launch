@@ -1,0 +1,7 @@
+<launch>
+	<arg name="trace_debug" default="false" />
+	<arg if="$(arg trace_debug)" name="launch_prefix" value="xterm -e gdb --args" />
+	<arg unless="$(arg trace_debug)" name="launch_prefix" value="" />
+	<node pkg="farryn_controller" name="traceRotation" type="trace_rotation_node" respawn="false" output="screen" launch-prefix="$(arg launch_prefix)" >
+	</node>
+</launch>

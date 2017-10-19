@@ -1,0 +1,16 @@
+<launch>
+	<arg name="doDebug" default="false" />
+	<arg if="$(arg doDebug)" name="launchPrefix" value="xterm -e gdb -args" />
+	<arg unless="$(arg doDebug)" name="launchPrefix" value="" />
+	<arg name="do_odom_tf" default="true" />
+	<node name="motor_controller_node" pkg="motor_controller"  type="motor_controller_node" output="screen" launch-prefix="$(arg launchPrefix) ">
+		<remap from="odom" to="motor_odom" />
+		<rosparam command="load" file="$(find motor_controller)/cfg/motor.yaml"/>
+		<param name="do_odom_tf" value="$(arg do_odom_tf)" />
+	</node>
+
+	<!--node pkg="tf" type="static_transform_publisher" name="base_footprint_base_link_tf" args="0.00 0 -0.063 0 0 0 base_link base_footprint 100" /-->
+
+    <!--node pkg="tf" type="static_transform_publisher" name="tf_base_link_to_camera_link" args="0.0075 -0.24 0.27 0 -1.570796326794897 0 1 base_link camera_link 100" /-->
+
+</launch>
