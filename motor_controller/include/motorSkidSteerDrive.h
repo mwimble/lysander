@@ -232,13 +232,13 @@ private:
 		return angle;
 	}
 	
-	void  openUsb();
+	void  openPort();
 
 	void queueThread();
 
 	uint8_t readByteWithTimeout();
 	
-	void restartUsb();
+	void restartPort();
 
 	void roboClawStatusReaderThread();
 
