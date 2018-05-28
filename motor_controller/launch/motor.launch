@@ -3,7 +3,7 @@
 	<arg if="$(arg doDebug)" name="launchPrefix" value="xterm -e gdb -args" />
 	<arg unless="$(arg doDebug)" name="launchPrefix" value="" />
 	<arg name="do_odom_tf" default="true" />
-	<node name="motor_controller_node" pkg="motor_controller"  type="motor_controller_node" output="screen" launch-prefix="$(arg launchPrefix) ">
+	<node name="motor_controller_node" pkg="motor_controller"  type="motor_controller_node" output="screen" launch-prefix="$(arg launchPrefix)" respawn="true" >
 		<remap from="odom" to="motor_odom" />
 		<rosparam command="load" file="$(find motor_controller)/cfg/motor.yaml"/>
 		<param name="do_odom_tf" value="$(arg do_odom_tf)" />
