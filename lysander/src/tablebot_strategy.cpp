@@ -1,4 +1,5 @@
 #include <ros/ros.h>
+#include <cstdlib>
 
 #include <lysander/tablebot_strategy.h>
 #include <geometry_msgs/Twist.h>
@@ -10,23 +11,32 @@ TablebotStrategy::TablebotStrategy() :
 	avgBackRightMm_(0.0),
 	avgFrontLeftMm_(0.0),
 	avgFrontRightMm_(0.0),
+	backLeftMm_(0.0),
+	backRightMm_(0.0),
+	nextGoalIndex_(0),
 	debug_(false),
 	defaultForwardVelocity_(0.1),
 	distanceToTableTopSlack_(10.0),
-	backLeftMm_(0.0),
-	backRightMm_(0.0),
 	frontLeftMm_(0.0),
 	frontRightMm_(0.0),
+	odomFound_(false),
+	odomReadCount_(0),
 	tofFound_(false),
 	tofReadCount(0) {
 
+	pushGoal(kNONE);
 	ros::NodeHandle privnh("~");
 
+	privnh.getParam("debug_", debug_);
 	privnh.getParam("default_forward_velocity", defaultForwardVelocity_);
+	privnh.getParam("distanceToTableTopSlack_", distanceToTableTopSlack_);
 
-	ROS_INFO("TablebotStrategy defaultForwardVelocity_: %7.3f", defaultForwardVelocity_);
+	ROS_INFO("[TablebotStrategy::TablebotStrategy] debug_: %s", debug_ ? "TRUE" : "FALSE");
+	ROS_INFO("[TablebotStrategy::TablebotStrategy] defaultForwardVelocity_: %7.3f", defaultForwardVelocity_);
+	ROS_INFO("[TablebotStrategy::TablebotStrategy] distanceToTableTopSlack_: %7.3f", distanceToTableTopSlack_);
 
 	arduinoSensorsSub_ = nh_.subscribe("arduino_sensors", 1, &TablebotStrategy::handleArduinoSensors, this);
+	odomSUb_ = nh_.subscribe("motor_odom", 1, &TablebotStrategy::handleOdom, this);
 	cmdVelPub_ = nh_.advertise<geometry_msgs::Twist>("/cmd_vel", 50);
 
 	computeAvgTofDistances();
@@ -37,19 +47,19 @@ bool TablebotStrategy::anyTableEdgeFound() {
 			      frontRightTableEdgeFound() ||
 			      backLeftTableEdgeFound() ||
 			      backRightTableEdgeFound();
-	ROS_INFO_COND(debug_, "anyTableEdgeFound result: %d", result);
+	ROS_INFO_COND(debug_, "[TablebotStrategy::anyTableEdgeFound] result: %d", result);
 	return result;
 }
 
 bool TablebotStrategy::backLeftTableEdgeFound() {
 	bool result =  tofFound_ && (backLeftMm_ > (avgBackLeftMm_ + distanceToTableTopSlack_));
-	ROS_INFO_COND(debug_ || result, "backLeftTableEdgeFound: %d, backLeftMm_: %6.1f, avgBackLeftMm_: %6.1f", result, backLeftMm_, avgBackLeftMm_);
+	ROS_INFO_COND(debug_ || result, "[TablebotStrategy::backLeftTableEdgeFound] result: %d, backLeftMm_: %6.1f, avgBackLeftMm_: %6.1f", result, backLeftMm_, avgBackLeftMm_);
 	return result;
 }
 
 bool TablebotStrategy::backRightTableEdgeFound() {
 	bool result =  tofFound_ && (backRightMm_ > (avgBackRightMm_ + distanceToTableTopSlack_));
-	ROS_INFO_COND(debug_ || result, "backRightTableEdgeFound: %d, backRightMm_: %6.1f, avgBackRightMm_: %6.1f", result, backRightMm_, avgBackRightMm_);
+	ROS_INFO_COND(debug_ || result, "[TablebotStrategy::backRightTableEdgeFound] result: %d, backRightMm_: %6.1f, avgBackRightMm_: %6.1f", result, backRightMm_, avgBackRightMm_);
 	return result;
 }
 
@@ -85,7 +95,7 @@ void TablebotStrategy::computeAvgTofDistances() {
 		avgBackRightMm_ = avgBackRightMm_ / readingCount;
 	}
 
-	ROS_INFO_COND(debug_, "computeAvgTofDistances avgFrontLeftMm_: %6.1f, avgFrontRightMm_: %6.1f, avgBackLeftMm_: %6.1f, avgBackRightMm_: %6.1f",
+	ROS_INFO_COND(debug_, "[TablebotStrategy::computeAvgTofDistances] avgFrontLeftMm_: %6.1f, avgFrontRightMm_: %6.1f, avgBackLeftMm_: %6.1f, avgBackRightMm_: %6.1f",
 			 avgFrontLeftMm_,
 			 avgFrontRightMm_,
 			 avgBackLeftMm_,
@@ -93,9 +103,15 @@ void TablebotStrategy::computeAvgTofDistances() {
 			 );
 }
 
+TablebotStrategy::GOAL TablebotStrategy::currentGoal() {
+	return currentGoal_[nextGoalIndex_ - 1];
+}
+
+
 bool TablebotStrategy::driveUntilEdgeIsComplete() {
 	if (anyTableEdgeFound()) {
-		ROS_INFO_COND(debug_, "driveUntilEdgeIsComplete anyTableEdgeFound");
+		stop();
+		ROS_INFO_COND(debug_, "[TablebotStrategy::driveUntilEdgeIsComplete] anyTableEdgeFound");
 		return true;
 	} else {
 		geometry_msgs::Twist cmdVel;
@@ -103,20 +119,20 @@ bool TablebotStrategy::driveUntilEdgeIsComplete() {
 		cmdVel.linear.x = defaultForwardVelocity_;
 		cmdVel.angular.z = 0.0;
 		cmdVelPub_.publish(cmdVel);
-		ROS_INFO_COND(debug_, "driveUntilEdgeIsComplete move");
+		ROS_INFO_COND(debug_, "[TablebotStrategy::driveUntilEdgeIsComplete] move");
 		return false;
 	}
 }
 
 bool TablebotStrategy::frontLeftTableEdgeFound() {
 	bool result = tofFound_ && (frontLeftMm_ > (avgFrontLeftMm_ + distanceToTableTopSlack_));
-	ROS_INFO_COND(debug_ || result, "frontLeftTableEdgeFound: %d, frontLeftMm_: %6.1f, avgFrontLeftMm_: %6.1f", result, frontLeftMm_, avgFrontLeftMm_);
+	ROS_INFO_COND(debug_ || result, "[TablebotStrategy::frontLeftTableEdgeFound] result: %d, frontLeftMm_: %6.1f, avgFrontLeftMm_: %6.1f", result, frontLeftMm_, avgFrontLeftMm_);
 	return result;
 }
 
 bool TablebotStrategy::frontRightTableEdgeFound() {
 	bool result =  tofFound_ && (frontRightMm_ > (avgFrontRightMm_ + distanceToTableTopSlack_));
-	ROS_INFO_COND(debug_ || result, "frontRightTableEdgeFound: %d, frontRightMm_: %6.1f, avgFrontRightMm_: %6.1f", result, frontRightMm_, avgFrontRightMm_);
+	ROS_INFO_COND(debug_ || result, "[TablebotStrategy::frontRightTableEdgeFound] result: %d, frontRightMm_: %6.1f, avgFrontRightMm_: %6.1f", result, frontRightMm_, avgFrontRightMm_);
 	return result;
 }
 
@@ -127,7 +143,7 @@ void TablebotStrategy::handleArduinoSensors(const lysander::ArduinoSensors::Cons
 	frontRightMm_ = arduino_sensors->frontRightMm;
 	backLeftMm_ = arduino_sensors->backLeftMm;
 	backRightMm_ = arduino_sensors->backRightMm;
-	ROS_INFO_COND(debug_, "frontLeftMm: %6.1f, frontRightMm: %6.1f, backLeftMm: %6.1f, backRightMm: %6.1f, tofReadCount: %d",
+	ROS_INFO_COND(debug_, "[TablebotStrategy::handleArduinoSensors] frontLeftMm: %6.1f, frontRightMm: %6.1f, backLeftMm: %6.1f, backRightMm: %6.1f, tofReadCount: %d",
 			 arduino_sensors->frontLeftMm,
 			 arduino_sensors->frontRightMm,
 			 arduino_sensors->backLeftMm,
@@ -135,13 +151,78 @@ void TablebotStrategy::handleArduinoSensors(const lysander::ArduinoSensors::Cons
 			 tofReadCount);
 }
 
+void TablebotStrategy::handleOdom(const nav_msgs::Odometry::ConstPtr& odom) {
+	lastOdom_ = *odom;
+	odomFound_ = true;
+	odomReadCount_++;
+	ROS_INFO_COND(debug_, "[TablebotStrategy::handleOdom] odomReadCount_: %d, x: %7.3f, y: %7.3f",
+				  odomReadCount_,
+				  lastOdom_.pose.pose.position.x,
+				  lastOdom_.pose.pose.position.y);
+}
+
+TablebotStrategy::GOAL TablebotStrategy::popGoal() {
+	return currentGoal_[--nextGoalIndex_];
+}
+
+
+void TablebotStrategy::pushGoal(GOAL goal) {
+	currentGoal_[nextGoalIndex_++] = goal;
+}
+
+
 void TablebotStrategy::solveChallenge1() {
+	static const float kBACKUP_DISTANCE = .254 * 3;
+
 	ros::Rate r(10);
+	nav_msgs::Odometry markedOdom;
+	geometry_msgs::Twist cmdVel;
+
 	while (ros::ok()) {
-		if (driveUntilEdgeIsComplete()) {
-			ROS_INFO_COND(debug_, "driveUntilEdgeIsComplete is false, continue");
+		switch (currentGoal()) {
+		case kBACKUP:
+			if (lastOdom_.pose.pose.position.x > (markedOdom.pose.pose.position.x - kBACKUP_DISTANCE)) {
+				// Still need to backup.
+				cmdVel.linear.x = - defaultForwardVelocity_;
+				cmdVel.angular.z = 0.0;
+				cmdVelPub_.publish(cmdVel);
+				ROS_INFO_COND(debug_ || true, "[TablebotStrategy::solveChallenge1] backing up");
+			} else {
+				popGoal();
+				pushGoal(kSUCCESS);
+			}
+
 			break;
+
+		case kFIND_TABLE_EDGE:
+			if (! driveUntilEdgeIsComplete()) {
+				// Not yet at table edge.
+				ROS_INFO_COND(debug_ || true, "[TablebotStrategy::solveChallenge1] driveUntilEdgeIsComplete is false, continue");
+			} else {
+				// Found table edge.
+				ROS_INFO_COND(debug_ || true, "[TablebotStrategy::solveChallenge1] Found table edge");
+				popGoal();
+				pushGoal(kBACKUP);
+				markedOdom = lastOdom_;
+			}
+
+			break;
+
+		case kNONE:
+			pushGoal(kFIND_TABLE_EDGE);
+			break;
+
+		case kSUCCESS:
+			ROS_INFO("[TablebotStrategy::solveChallenge1] PROBLEM SOLVED");
+			return;
+			break;
+
+		default:
+			ROS_ERROR("[TablebotStrategy::solveChallenge1] invalid goal: %d", currentGoal());
+			exit(-1);
 		}
+
+		
 
 		ros::spinOnce();
 		r.sleep();
@@ -150,9 +231,14 @@ void TablebotStrategy::solveChallenge1() {
 
 void TablebotStrategy::stop() {
 	geometry_msgs::Twist cmdVel;
+	cmdVel.linear.x = -1.0;
+	cmdVel.angular.z = 0.0;
+	cmdVelPub_.publish(cmdVel);
+
 	cmdVel.linear.x = 0.0;
 	cmdVel.angular.z = 0.0;
 	cmdVelPub_.publish(cmdVel);
+
 }
 
 

@@ -6,7 +6,7 @@ M2_I: 490.19002
 M1_QPPS: 6432
 M2_QPPS: 6116
 AXLE_WIDTH: 0.188
-motor_usb_port: /dev/ttyS5
+motor_usb_port: /dev/roboclaw
 
 KP_velocity: 15
 frw_vel_topic: /summit_xl/joint_frw_velocity_controller/command
