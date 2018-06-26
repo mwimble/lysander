@@ -100,12 +100,8 @@ MotorSkidSteerDrive::MotorSkidSteerDrive() :
 	ROS_INFO("[MotorSkidSteerDrive] PARAM motorUSBPort: %s", motorUSBPort.c_str());
 	ROS_INFO("[MotorSkidSteerDrive] PARAM do_odom_tf: %s", do_odom_tf_ ? "TRUE" : "FALSE");
 
-	openUsb();
+	openPort();
 
-	// Flush the buffer one more time.
-	tcflush(clawPort, TCIOFLUSH);
-	flush();
-	usleep(15000);
 	stop();
 
 	setM1PID(M1_P, M1_I, 0, M1_QPPS);
@@ -435,7 +431,7 @@ float MotorSkidSteerDrive::getLogicBatteryLevel() {
 			return result;
 		} catch (TRoboClawException* e) {
 			ROS_ERROR("[MotorSkidSteerDrive::getLogicBatteryLevel] Exception: %s, retry number: %d", e->what(), retry);
-			restartUsb();
+			restartPort();
 		} catch (...) {
 		    ROS_ERROR("[MotorSkidSteerDrive::getLogicBatteryLevel] Uncaught exception !!!");
 		}
@@ -1033,7 +1029,7 @@ uint8_t MotorSkidSteerDrive::readByteWithTimeout() {
 		throw new TRoboClawException("[MotorSkidSteerDrive::readByteWithTimeout] TIMEOUT");
 	} else if (ufd[0].revents & POLLERR) {
 		ROS_ERROR("[MotorSkidSteerDrive::readByteWithTimeout] Error on socket");
-		restartUsb();
+		restartPort();
 		throw new TRoboClawException("[MotorSkidSteerDrive::readByteWithTimeout] Error on socket");
 	} else if (ufd[0].revents & POLLIN) {
 		char buffer[1];
@@ -1051,65 +1047,75 @@ uint8_t MotorSkidSteerDrive::readByteWithTimeout() {
 	}
 }
 
-void MotorSkidSteerDrive::openUsb() {
-	ROS_WARN("[MotorSkidSteerDrive::openUsb] about to open port: %s", motorUSBPort.c_str());
+void MotorSkidSteerDrive::openPort() {
+	ROS_WARN("[MotorSkidSteerDrive::openPort] about to open port: %s", motorUSBPort.c_str());
 	clawPort = open(motorUSBPort.c_str(), O_RDWR | O_NOCTTY);
-	if (clawPort == -1) {
-		ROS_ERROR("[MotorSkidSteerDrive::openUsb] Unable to open USB port, errno: (%d) %s", errno, strerror(errno));
-		throw new TRoboClawException("[MotorSkidSteerDrive::openUsb] Unable to open USB port");
+	if (clawPort < 0) {
+		ROS_ERROR("[MotorSkidSteerDrive::openPort] Unable to open USB port, errno: (%d) %s", errno, strerror(errno));
+		throw new TRoboClawException("[MotorSkidSteerDrive::openPort] Unable to open USB port");
 	}
 
-// 	if (ioctl(clawPort, USBDEVFS_RESET, 0) == -1) {
-// 		ROS_WARN("[MotorSkidSteerDrive::MotorSkidSteerDrive] Unable to reset USB port, error (%d) %s", errno, strerror(errno));
-// 		//throw new TRoboClawException("[MotorSkidSteerDrive::MotorSkidSteerDrive] Unable to reset USB port");
-//   	}
-
-	struct flock lock;
-  	lock.l_type = F_WRLCK;
-	lock.l_whence = SEEK_SET;
-	lock.l_start = 0;
-	lock.l_len = 0;
-	lock.l_pid = getpid();
-	if (fcntl(clawPort, F_SETLK, &lock) != 0) {
-		ROS_ERROR("[MotorSkidSteerDrive::MotorSkidSteerDrive] Device is alreadeltaY locked");
-		throw new TRoboClawException("[MotorSkidSteerDrive::MotorSkidSteerDrive] Device is alreadeltaY locked");
-	}
 
     // Fetch the current port settings.
 	struct termios portOptions;
-	tcgetattr(clawPort, &portOptions);
-	memset(&portOptions.c_cc, 0, sizeof(portOptions.c_cc));
+	int ret = 0;
 
-    // Set the input and output baud rates.
-    //cfsetispeed(&portOptions, B38400);
-    //cfsetospeed(&portOptions, B38400);
+ 	ret = tcgetattr(clawPort, &portOptions);
+	if (ret < 0) {
+		ROS_ERROR("[MotorSkidSteerDrive::openPort] Unable to get terminal options (tcgetattr), error: %d: %s", errno, strerror(errno));
+		// throw new TRoboClawException("[MotorSkidSteerDrive::openPort] Unable to get terminal options (tcgetattr)");
+	}
+
+    //memset(&portOptions.c_cc, 0, sizeof(portOptions.c_cc));
 
     // c_cflag contains a few important things- CLOCAL and CREAD, to prevent
     //   this program from "owning" the port and to enable receipt of data.
     //   Also, it holds the settings for number of data bits, parity, stop bits,
     //   and hardware flow control. 
-    portOptions.c_cflag = CS8 | CLOCAL | CREAD;
-    portOptions.c_iflag = IGNPAR;
-    portOptions.c_oflag = 0;
-    portOptions.c_lflag = 0;
-    usleep(200000);
-    tcflush(clawPort, TCIOFLUSH);
+    portOptions.c_cflag &= ~HUPCL;
+    portOptions.c_iflag |= BRKINT;
+    portOptions.c_iflag |= IGNPAR;
+    portOptions.c_iflag &= ~ICRNL;
+    portOptions.c_oflag &= ~OPOST;
+    portOptions.c_lflag &= ~ISIG;
+    portOptions.c_lflag &= ~ICANON;
+    portOptions.c_lflag &= ~ECHO;
+
+    portOptions.c_cc[VKILL] = 8;
+    portOptions.c_cc[VMIN] = 100;
+    portOptions.c_cc[VTIME] = 2;
+    
+    if (cfsetispeed(&portOptions, B38400) < 0) {
+		ROS_ERROR("[MotorSkidSteerDrive::openPort] Unable to set terminal speed (cfsetispeed)");
+		throw new TRoboClawException("[MotorSkidSteerDrive::openPort] Unable to set terminal speed (cfsetispeed)");
+    }
+
+    if (cfsetospeed(&portOptions, B38400) < 0) {
+		ROS_ERROR("[MotorSkidSteerDrive::openPort] Unable to set terminal speed (cfsetospeed)");
+		throw new TRoboClawException("[MotorSkidSteerDrive::openPort] Unable to set terminal speed (cfsetospeed)");
+    }
+
+    // portOptions.c_iflag = IGNPAR;
+    // portOptions.c_oflag = 0;
+    // portOptions.c_lflag = 0;
+    // usleep(200000);
+    // tcflush(clawPort, TCIOFLUSH);
 
     // Now that we've populated our options structure, let's push it back to the system.
     if (tcsetattr(clawPort, TCSANOW, &portOptions) < 0) {
-		ROS_ERROR("[MotorSkidSteerDrive::openUsb] Unable to set terminal options (tcsetattr)");
-		throw new TRoboClawException("[MotorSkidSteerDrive::openUsb] Unable to set terminal options (tcsetattr)");
+		ROS_ERROR("[MotorSkidSteerDrive::openPort] Unable to set terminal options (tcsetattr)");
+		throw new TRoboClawException("[MotorSkidSteerDrive::openPort] Unable to set terminal options (tcsetattr)");
     }
 }
 
-void MotorSkidSteerDrive::restartUsb() {
-    ROS_ERROR("-----> [MotorSkidSteerDrive::restartUsb]");
-    int result = ioctl(clawPort, USBDEVFS_RESET, 0);
-    ROS_ERROR("[MotorSkidSteerDrive::restartUsb] ioctl result: %d", result);
+void MotorSkidSteerDrive::restartPort() {
+    // ROS_ERROR("-----> [MotorSkidSteerDrive::restartPort]");
+    // int result = ioctl(clawPort, USBDEVFS_RESET, 0);
+    // ROS_ERROR("[MotorSkidSteerDrive::restartPort] ioctl result: %d", result);
     close(clawPort);
     usleep(200000);
-    openUsb();
-    ROS_ERROR("<----- [MotorSkidSteerDrive::restartUsb] ioctl result: %d", result);
+    openPort();
+    // ROS_ERROR("<----- [MotorSkidSteerDrive::restartPort] ioctl result: %d", result);
 }
 
 void MotorSkidSteerDrive::setM1PID(float p, float i, float d, uint32_t qpps) {
@@ -1229,7 +1235,7 @@ void MotorSkidSteerDrive::stop() {
 			return;
 		} catch (TRoboClawException* e) {
 			ROS_ERROR("[MotorSkidSteerDrive::stop] Exception: %s, retry number: %d", e->what(), retry);
-			restartUsb();
+			restartPort();
 		} catch (...) {
 		    ROS_ERROR("[MotorSkidSteerDrive::stop] Uncaught exception !!!");
 		}
@@ -1425,7 +1431,7 @@ void MotorSkidSteerDrive::writeByte(uint8_t byte) {
 	ssize_t result = write(clawPort, &byte, 1);
 	if (result != 1) {
 	  ROS_ERROR("[MotorSkidSteerDrive::writeByte] Unable to write one byte, result: %d, errno: %d)", (int) result,  errno);
-		restartUsb();
+		restartPort();
 		throw new TRoboClawException("[MotorSkidSteerDrive::writeByte] Unable to write one byte");
 	}
 }
