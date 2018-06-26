@@ -35,9 +35,9 @@
 
 // 7.5 inches in meters.
 //#define axle_width_ 0.1905
-#define axle_width_ 0.255 //0.21166666666667
+#define axle_width_ 0.2564 //0.255 //0.21166666666667
 // 0.955173394218208, prev 1.22, new = 1.071704548312829
-#define calibration_correction_factor_ 1.071704548312829
+#define calibration_correction_factor_ 1.087780116537521 //1.071704548312829
 #define quad_pulse_per_meter_ 6353.4523937932416
 
 // Max no-load speed = 160 RPM

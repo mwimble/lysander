@@ -1,0 +1,6 @@
+resolution: 0.014788221343874
+origin: [-10.2817, -10.2817, 0.0]
+occupied_thresh: 0.65
+free_thresh: 0.196
+negate: 0
+image: /home/wimble/lysander_ws/src/lysander/lysander/maps/1144SnowberryCourtv18d.jpg

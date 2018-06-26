@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<launch>
+	<arg name="doDebug" default="false" />
+	<arg if="$(arg doDebug)" name="launchPrefix" value="xterm -e gdb -args" />
+	<arg unless="$(arg doDebug)" name="launchPrefix" value="" />
+
+	<arg name="do_arduino" default="true" />
+	<arg name="do_motor_controller" default="true" />
+	<arg name="do_odom_tf" default="true" />
+
+
+	<node if="$(arg do_arduino)" pkg="rosserial_python" type="serial_node.py" name="serial_node" output="screen" >
+		<param name="port" value="/dev/teensy3_6"/>
+		<param name="baud" value="115200"/>
+	</node>
+
+	<!-- Bring up motor controller -->
+	<node if="$(arg do_motor_controller)" name="motor_controller_node" pkg="motor_controller"  type="motor_controller_node" output="screen" >
+		<remap from="odom" to="motor_odom" />
+        <remap from="/cmd_vel_mux/input/teleop" to="/cmd_vel" />
+		<rosparam command="load" file="$(find motor_controller)/cfg/motor.yaml"/>
+		<param name="do_odom_tf" value="$(arg do_odom_tf)" />
+	</node>
+
+	<node pkg="lysander" type="tablebot_node" name="tablebot_node" output="screen" launch-prefix="$(arg launchPrefix)" >
+	</node>
+</launch>

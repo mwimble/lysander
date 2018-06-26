@@ -11,4 +11,5 @@ motor_usb_port: /dev/roboclaw
 KP_velocity: 15
 frw_vel_topic: /summit_xl/joint_frw_velocity_controller/command
 
-cmd_vel_topic: /robot_cmd_vel #/cmd_vel_mux/input/teleop
+#cmd_vel_topic: /robot_cmd_vel #/cmd_vel_mux/input/teleop
+cmd_vel_topic: /cmd_vel_mux/input/teleop
