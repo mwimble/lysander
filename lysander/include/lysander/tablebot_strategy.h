@@ -50,6 +50,7 @@ namespace lysander {
 		float avgBackRightMm_;
 
 		// Odometry.
+		int lastDirection_;
 		bool odomFound_;
 		int odomReadCount_;
 		nav_msgs::Odometry lastOdom_;

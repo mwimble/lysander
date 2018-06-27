@@ -13,6 +13,7 @@ TablebotStrategy::TablebotStrategy() :
 	avgFrontRightMm_(0.0),
 	backLeftMm_(0.0),
 	backRightMm_(0.0),
+	lastDirection_(0),
 	nextGoalIndex_(0),
 	debug_(false),
 	defaultForwardVelocity_(0.1),
@@ -118,6 +119,7 @@ bool TablebotStrategy::driveUntilEdgeIsComplete() {
 
 		cmdVel.linear.x = defaultForwardVelocity_;
 		cmdVel.angular.z = 0.0;
+		lastDirection_ = 1;
 		cmdVelPub_.publish(cmdVel);
 		ROS_INFO_COND(debug_, "[TablebotStrategy::driveUntilEdgeIsComplete] move");
 		return false;
@@ -172,7 +174,7 @@ void TablebotStrategy::pushGoal(GOAL goal) {
 
 
 void TablebotStrategy::solveChallenge1() {
-	static const float kBACKUP_DISTANCE = .254 * 3;
+	static const float kBACKUP_DISTANCE = .0254 * 3;
 
 	ros::Rate r(10);
 	nav_msgs::Odometry markedOdom;
@@ -185,9 +187,16 @@ void TablebotStrategy::solveChallenge1() {
 				// Still need to backup.
 				cmdVel.linear.x = - defaultForwardVelocity_;
 				cmdVel.angular.z = 0.0;
+				lastDirection_ = -1;
 				cmdVelPub_.publish(cmdVel);
-				ROS_INFO_COND(debug_ || true, "[TablebotStrategy::solveChallenge1] backing up");
+				ROS_INFO_COND(debug_ || true, 
+							  "[TablebotStrategy::solveChallenge1] backing up marked x: %6.3f, current x: %6.3f, goal x: %6.3f",
+							  markedOdom.pose.pose.position.x,
+							  lastOdom_.pose.pose.position.x,
+							  markedOdom.pose.pose.position.x - kBACKUP_DISTANCE
+							  );
 			} else {
+				stop();
 				popGoal();
 				pushGoal(kSUCCESS);
 			}
@@ -200,7 +209,7 @@ void TablebotStrategy::solveChallenge1() {
 				ROS_INFO_COND(debug_ || true, "[TablebotStrategy::solveChallenge1] driveUntilEdgeIsComplete is false, continue");
 			} else {
 				// Found table edge.
-				ROS_INFO_COND(debug_ || true, "[TablebotStrategy::solveChallenge1] Found table edge");
+				ROS_INFO_COND(debug_ || true, "[TablebotStrategy::solveChallenge1] Found table edge, current x: %6.3f", lastOdom_.pose.pose.position.x);
 				popGoal();
 				pushGoal(kBACKUP);
 				markedOdom = lastOdom_;
@@ -209,11 +218,16 @@ void TablebotStrategy::solveChallenge1() {
 			break;
 
 		case kNONE:
-			pushGoal(kFIND_TABLE_EDGE);
+			if (odomFound_) {
+				ROS_INFO_COND(debug_ || true, "[TablebotStrategy::solveChallenge1] start, current x: %6.3f", lastOdom_.pose.pose.position.x);
+				pushGoal(kFIND_TABLE_EDGE);
+			}
+
 			break;
 
 		case kSUCCESS:
 			ROS_INFO("[TablebotStrategy::solveChallenge1] PROBLEM SOLVED");
+			ROS_INFO_COND(debug_ || true, "[TablebotStrategy::solveChallenge1] end, final x: %6.3f", lastOdom_.pose.pose.position.x);
 			return;
 			break;
 
@@ -231,7 +245,7 @@ void TablebotStrategy::solveChallenge1() {
 
 void TablebotStrategy::stop() {
 	geometry_msgs::Twist cmdVel;
-	cmdVel.linear.x = -1.0;
+	cmdVel.linear.x = lastDirection_ == 1 ? -1.0 : 1.0;
 	cmdVel.angular.z = 0.0;
 	cmdVelPub_.publish(cmdVel);
 
@@ -239,6 +253,7 @@ void TablebotStrategy::stop() {
 	cmdVel.angular.z = 0.0;
 	cmdVelPub_.publish(cmdVel);
 
+	lastDirection_ = 0;
 }
 
 
