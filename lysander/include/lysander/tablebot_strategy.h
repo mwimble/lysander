@@ -5,7 +5,56 @@
 
 namespace lysander {
 
-	class TablebotStrategy {
+	// Arduino sensors data.
+	class Eulers {
+	public:
+		float x_;
+		float y_;
+		float z_;
+		Eulers() {
+			x_ = 0;
+			y_ = 0;
+			z_ = 0;
+		}
+
+		Eulers(float x, float y, float z) {
+			x_ = x;
+			y_ = y;
+			z_ = z;
+		}
+
+		Eulers(const Eulers& other) {
+			x_ = other.x_;
+			y_ = other.y_;
+			z_ = other.z_;
+		}
+	};
+
+ 	class SimplePose {
+	public:
+		float x_;
+		float y_;
+		float euler_;
+		SimplePose() {
+			x_ = 0;
+			y_ = 0;
+			euler_ = 0;
+		}
+
+		SimplePose(float x, float y, float euler) {
+			x_ = x;
+			y_ = y;
+			euler_ = euler;
+		}
+
+		SimplePose(const SimplePose& other) {
+			x_ = other.x_;
+			y_ = other.y_;
+			euler_ = other.euler_;
+		}
+	};
+
+ 	class TablebotStrategy {
 	public:
 
 		TablebotStrategy();
@@ -13,22 +62,40 @@ namespace lysander {
 		void solveChallenge1();
 
 	private:
+		Eulers lastEulers_;
+
+
+		static const int MAX_EDGE_POSE_DEPTH = 32; // Maximum depth of edgePose_ list.
+		SimplePose edgePose_[MAX_EDGE_POSE_DEPTH];
+		int nextEdgePoseIndex_;
+		static const int MAX_MARKED_POSE_DEPTH=32; // Maximum depth of markedPose_ list;
+		SimplePose markedPose_[MAX_MARKED_POSE_DEPTH];
+		int nextMarkedPoseIndex_;
+
 		// Goals.
 		typedef enum GOAL {
-			kBACKUP,
-			kFIND_TABLE_EDGE,
+			kBACKUP_AND_ROTATE_180,
+			kFIND_FAR_EDGE,
+			kFIND_NEAR_EDGE,
 			kNONE,
+			kROTATE_180,
+			kROTATE_CLOCKWISE_A_BIT,
+			kROTATE_COUNTERCLOCKWISE_A_BIT,
 			kSUCCESS,
+			kVICTORY_DANCE,
+			kWIGGLE_LEFT_A_BIT,
+			kWIGGLE_RIGHT_A_BIT
 		} GOAL;
 
-		static const int MAX_GOAL_DEPTH = 20;	// Maximum depth of goal stack.
+		static const int MAX_GOAL_DEPTH = 20;	// Maximum depth of currentGoal_ stack.
 		GOAL currentGoal_[MAX_GOAL_DEPTH];		// Goal stack;
 		int nextGoalIndex_;						// Index to place next goal in stack.
 
 		// Parameters.
-		bool debug_;
-		float distanceToTableTopSlack_;
-		float defaultForwardVelocity_;
+		bool debug_; // Generate vebose debug output.
+		float distanceToTableTopSlack_; // Distance to back up from edge before rotating.
+		float defaultForwardVelocity_;	// Default velocity for moving forward.
+		float defaultRotationVelocity_; // Default velocity for rotating.
 
 		// ROS variables.
 		ros::Subscriber arduinoSensorsSub_;
@@ -57,26 +124,67 @@ namespace lysander {
 
 		// Private methods.
 
+		// Current Pose;
+		SimplePose currentPose();
+
 		void handleArduinoSensors(const lysander::ArduinoSensors::ConstPtr& arduino_sensors);
 		void handleOdom(const nav_msgs::Odometry::ConstPtr& odom);
 
-		bool anyTableEdgeFound();
-		bool backLeftTableEdgeFound();
-		bool backRightTableEdgeFound();
+		// Have any of the edge sensors found an edge?
+		bool anyEdgeFound();
+
+		// Have both of the front edge sensors found an edge?
+		bool bothFrontSensorsFoundEdge();
+
+		// Has back-left edge sensor found an edge?
+		bool backLeftEdgeFound();
+
+		// Has back-right edge sensor found an edge?
+		bool backRightEdgeFound();
+
+		// Is the current Pose close to the desired Pose?
+		bool closeToDesiredPose(SimplePose desiredPose);
+
+		// Constrain angle to be in [0..360].
+		float constrainEulerAngle(float x);
+
 		void computeAvgTofDistances();
 
 		// Get current goal.
 		GOAL currentGoal();
 
-		bool driveUntilEdgeIsComplete();
-		bool frontLeftTableEdgeFound();
-		bool frontRightTableEdgeFound();
+		// Top marked Pose from stack;
+		SimplePose currentMarkedPose();
+
+		// Has front-left edge sensor found an edge?
+		bool frontLeftEdgeFound();
+
+		// Has front-right edge sensor found an edge?
+		bool frontRightEdgeFound();
 		
+		// String equivalent of GOAL.
+		const char* goalName(GOAL goal);
+
+		// Compute goal Pose from a given Pose for a given angle and distance.
+		SimplePose goalPose(SimplePose originalPose, float changeEuler, float distance);
+
 		// Remove top goal from stack.
 		GOAL popGoal();
 
+		// Remove top marked Pose from stack;
+		SimplePose popMarkedPose();
+
+		// Push a Pose reading of one edge of the table.
+		void pushEdgePose(SimplePose pose);
+
 		// Install new goal on stack.
 		void pushGoal(GOAL goal);
+
+		// Push an interesting pose.
+		void pushMarkedPose(SimplePose pose);
+
+		// Computer smallest Euler angle between two angles.
+		float smallestEulerAngleBetween(float a1, float a2);
 
 		// Stop motors.
 		void stop();
