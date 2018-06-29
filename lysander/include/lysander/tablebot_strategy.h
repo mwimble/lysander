@@ -62,15 +62,34 @@ namespace lysander {
 		void solveChallenge1();
 
 	private:
+		// Templete functions.
+		typedef bool (TablebotStrategy::*ContinueTestFn)();
+		typedef enum ROTATE_DIRECTION {
+			kCLOCKWISE,
+			kCOUNTERCLOCKWISE
+		} ROTATE_DIRECTION;
+
+		bool stillNeedToRotate180();
+		bool stillNeedToRotateAwayFromFrontLeftSensor();
+		bool stillNeedToRotateAwayFromFrontRightSensor();
+
+		// Move towards edge, if not there.
+		// RETURN true => edge found, no further movement required, false => edge not found,
+		//				  further calls needed to make progress.
+		bool findEdgeShouldContinue();
+
+		// Rotate if needed.
+		// RETURN true => rotation is complete, no further movement required,
+		//		  false => further calls needed to make progress.
+		bool rotationComplete(ContinueTestFn continueTestFn, ROTATE_DIRECTION rotateDirection);
+
 		Eulers lastEulers_;
 
 
+		// List of poses detcted for edges of the table.
 		static const int MAX_EDGE_POSE_DEPTH = 32; // Maximum depth of edgePose_ list.
 		SimplePose edgePose_[MAX_EDGE_POSE_DEPTH];
 		int nextEdgePoseIndex_;
-		static const int MAX_MARKED_POSE_DEPTH=32; // Maximum depth of markedPose_ list;
-		SimplePose markedPose_[MAX_MARKED_POSE_DEPTH];
-		int nextMarkedPoseIndex_;
 
 		// Goals.
 		typedef enum GOAL {
@@ -87,9 +106,11 @@ namespace lysander {
 			kWIGGLE_RIGHT_A_BIT
 		} GOAL;
 
+		// Goal stack and markedPose stack are in sync.
 		static const int MAX_GOAL_DEPTH = 20;	// Maximum depth of currentGoal_ stack.
 		GOAL currentGoal_[MAX_GOAL_DEPTH];		// Goal stack;
 		int nextGoalIndex_;						// Index to place next goal in stack.
+		SimplePose markedPose_[MAX_GOAL_DEPTH];
 
 		// Parameters.
 		bool debug_; // Generate vebose debug output.
@@ -117,7 +138,6 @@ namespace lysander {
 		float avgBackRightMm_;
 
 		// Odometry.
-		int lastDirection_;
 		bool odomFound_;
 		int odomReadCount_;
 		nav_msgs::Odometry lastOdom_;
@@ -171,17 +191,11 @@ namespace lysander {
 		// Remove top goal from stack.
 		GOAL popGoal();
 
-		// Remove top marked Pose from stack;
-		SimplePose popMarkedPose();
-
 		// Push a Pose reading of one edge of the table.
 		void pushEdgePose(SimplePose pose);
 
 		// Install new goal on stack.
 		void pushGoal(GOAL goal);
-
-		// Push an interesting pose.
-		void pushMarkedPose(SimplePose pose);
 
 		// Computer smallest Euler angle between two angles.
 		float smallestEulerAngleBetween(float a1, float a2);

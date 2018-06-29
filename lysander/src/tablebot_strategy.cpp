@@ -4,7 +4,6 @@
 // Clean up motor driver.
 // Motor driver to pull all constants from yaml.
 // Better sense of rotation.
-// Push information for goal, like marked orientation, etc. so when goal popped, don't have to synchronize other stacks.
 // Handle bot along close angle to table -- may require repositioning sensors.
 // Add sonar.
 // Add camera.
@@ -30,10 +29,8 @@ TablebotStrategy::TablebotStrategy() :
 	distanceToTableTopSlack_(16.0),
 	frontLeftMm_(0.0),
 	frontRightMm_(0.0),
-	lastDirection_(0),
 	nextEdgePoseIndex_(0),
 	nextGoalIndex_(0),
-	nextMarkedPoseIndex_(0),
 	odomFound_(false),
 	odomReadCount_(0),
 	tofFound_(false),
@@ -93,7 +90,7 @@ bool TablebotStrategy::closeToDesiredPose(SimplePose desiredPose) {
 	static const float closeDeltaY = 0.0254 / 2.0;
 	float deltaX = fabs(desiredPose.x_ - lastOdom_.pose.pose.position.x);
 	float deltaY = fabs(desiredPose.y_ - lastOdom_.pose.pose.position.y);
-	return result;
+	return (deltaX < closeDeltaX) && (deltaY < closeDeltaY);
 }
 
 
@@ -149,7 +146,7 @@ TablebotStrategy::GOAL TablebotStrategy::currentGoal() {
 }
 
 SimplePose TablebotStrategy::currentMarkedPose() {
-	return markedPose_[nextMarkedPoseIndex_ -1];
+	return markedPose_[nextGoalIndex_ -1];
 }
 
 
@@ -247,6 +244,7 @@ void TablebotStrategy::handleArduinoSensors(const lysander::ArduinoSensors::Cons
 			 arduino_sensors->euler_z);
 }
 
+
 void TablebotStrategy::handleOdom(const nav_msgs::Odometry::ConstPtr& odom) {
 	lastOdom_ = *odom;
 	odomFound_ = true;
@@ -257,12 +255,9 @@ void TablebotStrategy::handleOdom(const nav_msgs::Odometry::ConstPtr& odom) {
 				  lastOdom_.pose.pose.position.y);
 }
 
+
 TablebotStrategy::GOAL TablebotStrategy::popGoal() {
 	return currentGoal_[--nextGoalIndex_];
-}
-
-SimplePose TablebotStrategy::popMarkedPose() {
-	return markedPose_[--nextMarkedPoseIndex_];
 }
 
 
@@ -272,12 +267,8 @@ void TablebotStrategy::pushEdgePose(SimplePose pose) {
 
 
 void TablebotStrategy::pushGoal(GOAL goal) {
+	markedPose_[nextGoalIndex_] = currentPose();
 	currentGoal_[nextGoalIndex_++] = goal;
-}
-
-
-void TablebotStrategy::pushMarkedPose(SimplePose pose) {
-	markedPose_[nextMarkedPoseIndex_++] = pose;
 }
 
 
@@ -301,14 +292,13 @@ void TablebotStrategy::solveChallenge1() {
 		ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] ---- ---- Goal: %s", goalName(currentGoal()));
 		switch (currentGoal()) {
 		case kBACKUP_AND_ROTATE_180:
-			desiredPose = goalPose(currentMarkedPose(), 180, 0.0254 * 5);
+			desiredPose = goalPose(currentMarkedPose(), 180, 0.0254 * 6);
 			ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] kBACKUP_AND_ROTATE_180 desired x: %6.3f, desired y: %6.3f, desired euler: %6.3f",
 						  desiredPose.x_, desiredPose.y_, desiredPose.euler_);
 			if (! closeToDesiredPose(desiredPose)) {
 				// Still need to backup.
 				cmdVel.linear.x = - defaultForwardVelocity_;
 				cmdVel.angular.z = 0.0;
-				lastDirection_ = -1;
 				cmdVelPub_.publish(cmdVel);
 				ROS_INFO_COND(debug_, 
 							  "[TablebotStrategy::solveChallenge1] backing up, marked x: %6.3f, current x: %6.3f, goal x: %6.3f",
@@ -317,6 +307,7 @@ void TablebotStrategy::solveChallenge1() {
 							  desiredPose.x_
 							  );
 			} else {
+				ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] kBACKUP_AND_ROTATE_180 backup portion success");
 				stop();
 				popGoal();
 				pushGoal(kROTATE_180); // Use marked Pose for rotation
@@ -325,93 +316,23 @@ void TablebotStrategy::solveChallenge1() {
 			break;
 
 		case kFIND_FAR_EDGE:
-			// Looking for far table edge.
-			if (anyEdgeFound()) {
-				stop();
-				ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] kFIND_FAR_EDGE anyEdgeFound");
-				if (bothFrontSensorsFoundEdge()) {
-					// Success.
-					stop();
-					popGoal();
-					pushGoal(kFIND_NEAR_EDGE);
-					pushEdgePose(currentPose());
-					pushMarkedPose(currentPose());
-					pushGoal(kBACKUP_AND_ROTATE_180);
-				} else {
-					if (frontLeftEdgeFound()) {
-						// Need to rotate clockwise a bit so sensor isn't hanging over the edge.
-						pushMarkedPose(currentPose());
-						pushGoal(kROTATE_COUNTERCLOCKWISE_A_BIT);
-					} else if (frontRightEdgeFound()) {
-						// Need to rotate counterclockwise a bit so sensor isn't hanging over the edge.
-						pushMarkedPose(currentPose());
-						pushGoal(kROTATE_CLOCKWISE_A_BIT);
-					} else {
-						// UNIMPLEMENTED.
-						ROS_ERROR("[TablebotStrategy::solveChallenge1] kFIND_FAR_EDGE invalid combination of edge sensor readings");
-						//exit(-1);
-						cmdVel.linear.x = defaultForwardVelocity_;
-						cmdVel.angular.z = 0.0;
-						lastDirection_ = 1;
-						cmdVelPub_.publish(cmdVel);
-					}
-				}
-			} else {
-				// No edge found, continue to far edge.
-				geometry_msgs::Twist cmdVel;
-
-				cmdVel.linear.x = defaultForwardVelocity_;
-				cmdVel.angular.z = 0.0;
-				lastDirection_ = 1;
-				cmdVelPub_.publish(cmdVel);
-				ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] continue towards far edge");
+			if (!findEdgeShouldContinue()) {
+				ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] kFIND_FAR_EDGE successful");
+				pushGoal(kFIND_NEAR_EDGE);
+				pushGoal(kBACKUP_AND_ROTATE_180);
 			}
 
 			break;
 
 		case kFIND_NEAR_EDGE:
-			// Looking for near table edge.
-			if (anyEdgeFound()) {
-				stop();
-				ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] kFIND_NEAR_EDGE anyEdgeFound");
-				if (bothFrontSensorsFoundEdge()) {
-					// Success.
-					stop();
-					popGoal();
-					pushGoal(kVICTORY_DANCE);
-					pushEdgePose(currentPose());
-					pushMarkedPose(currentPose());
-					pushGoal(kBACKUP_AND_ROTATE_180);
-				} else {
-					if (frontLeftEdgeFound()) {
-						// Need to rotate clockwise a bit so sensor isn't hanging over the edge.
-						pushMarkedPose(currentPose());
-						pushGoal(kROTATE_COUNTERCLOCKWISE_A_BIT);
-					} else if (frontRightEdgeFound()) {
-						// Need to rotate counterclockwise a bit so sensor isn't hanging over the edge.
-						pushMarkedPose(currentPose());
-						pushGoal(kROTATE_CLOCKWISE_A_BIT);
-					} else {
-						// UNIMPLEMENTED.
-						ROS_ERROR("[TablebotStrategy::solveChallenge1] kFIND_NEAR_EDGE invalid combination of edge sensor readings");
-						//exit(-1);
-						cmdVel.linear.x = defaultForwardVelocity_;
-						cmdVel.angular.z = 0.0;
-						lastDirection_ = 1;
-						cmdVelPub_.publish(cmdVel);
-					}
-				}
-			} else {
-				// No edge found, continue to near edge.
-				cmdVel.linear.x = defaultForwardVelocity_;
-				cmdVel.angular.z = 0.0;
-				lastDirection_ = 1;
-				cmdVelPub_.publish(cmdVel);
-				ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] continue towards near edge");
+			if (!findEdgeShouldContinue()) {
+				ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] kFIND_NEAR_EDGE successful");
+				pushGoal(kVICTORY_DANCE);
+				pushGoal(kBACKUP_AND_ROTATE_180);
 			}
 
-			break;
 
+			break;
 		case kNONE:
 			if (odomFound_) {
 				ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] start, current x: %6.3f", lastOdom_.pose.pose.position.x);
@@ -421,29 +342,10 @@ void TablebotStrategy::solveChallenge1() {
 			break;
 
 		case kROTATE_180:
-			{
-				float eulerGoal = 180 - abs(currentMarkedPose().euler_);
-				float eulerDiff = smallestEulerAngleBetween(lastEulers_.x_, eulerGoal);
-				bool done = abs(eulerDiff) < 5.0;
-				ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] kROTATE_180] current euler: %6.3f, marked: %6.3f, , goal: %6.3f, diff: %6.3f, done: %d",
-							  lastEulers_.x_,
-							  currentMarkedPose().x_,
-							  eulerGoal,
-							  eulerDiff,
-							  done);
-				if (!done) {
-					// Still need to rotate.
-					cmdVel.linear.x = 0;
-					cmdVel.angular.z = defaultRotationVelocity_;
-					lastDirection_ = 0;
-					cmdVelPub_.publish(cmdVel);
-					ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] kROTATE_180 rotating");
-				} else {
-					ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] kROTATE_180 completed rotation");
-					stop();
-					popGoal();
-					popMarkedPose();
-				}
+			if (rotationComplete(&TablebotStrategy::stillNeedToRotate180, kCOUNTERCLOCKWISE)) {
+				ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] kROTATE_180 completed rotation");
+				stop();
+				popGoal();
 			}
 
 			break;
@@ -451,15 +353,8 @@ void TablebotStrategy::solveChallenge1() {
 		case kROTATE_CLOCKWISE_A_BIT:
 			// Rotate until front-left sensor now longer sees the edge, or both sensors see the edge.
 			// Assumes a marked pose was pushed.
-			if (frontRightEdgeFound() && !frontLeftEdgeFound()) {
-				// Still need to rotate.
-				cmdVel.linear.x = 0;
-				cmdVel.angular.z = -defaultRotationVelocity_;
-				lastDirection_ = 0;
-				cmdVelPub_.publish(cmdVel);
-				ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] rotate clockwise a bit");
-			} else {
-				popMarkedPose();
+			if (rotationComplete(&TablebotStrategy::stillNeedToRotateAwayFromFrontRightSensor, kCLOCKWISE)) {
+				ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] kROTATE_CLOCKWISE_A_BIT completed rotation");
 				stop();
 				popGoal();
 			}
@@ -469,15 +364,8 @@ void TablebotStrategy::solveChallenge1() {
 		case kROTATE_COUNTERCLOCKWISE_A_BIT:
 			// Rotate until front-right sensor now longer sees the edge, or both sensors see the edge.
 			// Assumes a marked pose was pushed.
-			if (frontLeftEdgeFound() && !frontRightEdgeFound()) {
-				// Still need to rotate.
-				cmdVel.linear.x = 0;
-				cmdVel.angular.z = defaultRotationVelocity_;
-				lastDirection_ = 0;
-				cmdVelPub_.publish(cmdVel);
-				ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] rotate counterclockwise a bit");
-			} else {
-				popMarkedPose();
+			if (rotationComplete(&TablebotStrategy::stillNeedToRotateAwayFromFrontLeftSensor, kCOUNTERCLOCKWISE)) {
+				ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] kROTATE_COUNTERCLOCKWISE_A_BIT completed rotation");
 				stop();
 				popGoal();
 			}
@@ -502,17 +390,102 @@ void TablebotStrategy::solveChallenge1() {
 	}
 }
 
+
+bool TablebotStrategy::findEdgeShouldContinue() {
+		geometry_msgs::Twist cmdVel;
+
+		// Looking for table edge.
+		if (anyEdgeFound()) {
+			stop();	// Brake so robot won't keep moving before further actions take place.
+			ROS_INFO_COND(debug_, "[TablebotStrategy::findEdgeShouldContinue] anyEdgeFound");
+			if (bothFrontSensorsFoundEdge()) {
+				// Success.
+				stop();
+				popGoal();
+				pushEdgePose(currentPose()); // Keep list of poses for edges of table.
+				return false;
+			} else {
+				if (frontLeftEdgeFound()) {
+					// Need to rotate counterclockwise a bit so sensor isn't hanging over the edge.
+					ROS_INFO_COND(debug_, "[TablebotStrategy::findEdgeShouldContinue] front left edge found, need to rotate counterclockwise a bit");
+					pushGoal(kROTATE_COUNTERCLOCKWISE_A_BIT);
+				} else if (frontRightEdgeFound()) {
+					// Need to rotate clockwise a bit so sensor isn't hanging over the edge.
+					ROS_INFO_COND(debug_, "[TablebotStrategy::findEdgeShouldContinue] front right edge found, need to rotate clockwise a bit");
+					pushGoal(kROTATE_CLOCKWISE_A_BIT);
+				} else {
+					// UNIMPLEMENTED.
+					ROS_ERROR("[TablebotStrategy::findEdgeShouldContinue] invalid combination of edge sensor readings");
+					//exit(-1);
+					cmdVel.linear.x = defaultForwardVelocity_;
+					cmdVel.angular.z = 0.0;
+					cmdVelPub_.publish(cmdVel);
+				}
+
+				return true;
+			}
+		} else {
+			// No edge found, continue to far edge.
+			geometry_msgs::Twist cmdVel;
+
+			cmdVel.linear.x = defaultForwardVelocity_;
+			cmdVel.angular.z = 0.0;
+			cmdVelPub_.publish(cmdVel);
+			ROS_INFO_COND(debug_, "[TablebotStrategy::findEdgeShouldContinue] continue towards edge");
+			return true;
+		}
+
+}
+
+bool TablebotStrategy::rotationComplete(ContinueTestFn continueTestFn, ROTATE_DIRECTION rotateDirection) {
+	if ((this->*continueTestFn)()) {
+		geometry_msgs::Twist cmdVel;
+	
+		cmdVel.linear.x = 0;
+		cmdVel.angular.z = rotateDirection == kCLOCKWISE ? -defaultRotationVelocity_ : defaultRotationVelocity_;
+		cmdVelPub_.publish(cmdVel);
+		ROS_INFO_COND(debug_, "[TablebotStrategy::rotationComplete] rotating");
+		return false;
+	} else {
+		ROS_INFO_COND(debug_, "[TablebotStrategy::rotationComplete] complete");
+		return true;
+	}
+}
+
+bool TablebotStrategy::stillNeedToRotateAwayFromFrontLeftSensor() {
+	return frontLeftEdgeFound() && !frontRightEdgeFound();
+}
+
+
+bool TablebotStrategy::stillNeedToRotateAwayFromFrontRightSensor() {
+	return frontRightEdgeFound() && !frontLeftEdgeFound();
+}
+
+
+bool TablebotStrategy::stillNeedToRotate180() {
+	float eulerGoal = 180.0 - abs(currentMarkedPose().euler_);
+	float eulerDiff = smallestEulerAngleBetween(lastEulers_.x_, eulerGoal);
+	bool done = abs(eulerDiff) < 5.0;
+	ROS_INFO_COND(debug_,
+				  "[TablebotStrategy::stillNeedToRotate180]"
+				  " eulerDiff: %6.3f"
+				  ", done: %d",
+				  eulerDiff,
+				  done);
+	return !done;	
+}
+
+
 void TablebotStrategy::stop() {
 	geometry_msgs::Twist cmdVel;
-	cmdVel.linear.x = lastDirection_ == 1 ? -1.0 : 1.0;
+	cmdVel.linear.x = -1;
 	cmdVel.angular.z = 0.0;
+	cmdVelPub_.publish(cmdVel);
 	cmdVelPub_.publish(cmdVel);
 
 	cmdVel.linear.x = 0.0;
 	cmdVel.angular.z = 0.0;
 	cmdVelPub_.publish(cmdVel);
-
-	lastDirection_ = 0;
 }
 
 
