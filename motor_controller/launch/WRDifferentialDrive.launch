@@ -1,4 +1,7 @@
 <launch>
+  <arg name="do_debug" default="false" />
+  <arg unless="$(arg do_debug)" name="prefix" value="" />
+  <arg     if="$(arg do_debug)" name="prefix" value="xterm -e gdb --args" />
     
     
   <param name="robot_description" command="$(find xacro)/xacro --inorder $(find motor_controller)/urdf/lysander.xacro" />
@@ -18,5 +21,8 @@
 
   <!-- Combine joint values -->
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher"/>
+
+  <!-- Start the motor controller -->
+  <node name="motor_controller_node" pkg="motor_controller" type="WRDifferentialDrive_node" launch-prefix="$(arg prefix)" />
 
 </launch>

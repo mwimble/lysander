@@ -6,6 +6,8 @@ int main(int argc, char** argv) {
 	ros::init(argc, argv, "WRDifferentialDrive_node");
 	ros::NodeHandle nh;
 
+	ROS_INFO("[WRDifferentialDrive_node] starting spinner");
+
 	ros::AsyncSpinner spinner(2);
 	spinner.start();
 

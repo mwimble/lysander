@@ -15,7 +15,7 @@ public:
     * Initialize the robot hardware interface.
     */
   virtual void init();
-  
+
 private:
   hardware_interface::JointStateInterface jnt_state_interface;
   hardware_interface::PositionJointInterface jnt_pos_interface;
@@ -23,6 +23,10 @@ private:
   double pos[2];
   double vel[2];
   double eff[2];
+
+  urdf::Model* model_;
+
+  void loadURDF(ros::NodeHandle &nh, std::string param_name);
 };
 
 #endif
