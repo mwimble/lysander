@@ -1,4 +1,7 @@
 // TODO:
+// smallestEulerAngleBetween wrong? 321, -147 => -108
+// Fix oscillation at table edge.
+// When traveling in a straight line (fwd/rev), use euler to correct angle drift.
 // Calibrate motors.
 // Faster motors.
 // Clean up motor driver.
@@ -25,7 +28,7 @@ TablebotStrategy::TablebotStrategy() :
 	backRightMm_(0.0),
 	debug_(true),
 	defaultForwardVelocity_(0.1),
-	defaultRotationVelocity_(0.4),
+	defaultRotationVelocity_(0.6),
 	distanceToTableTopSlack_(16.0),
 	frontLeftMm_(0.0),
 	frontRightMm_(0.0),
@@ -89,7 +92,7 @@ bool TablebotStrategy::closeToDesiredPose(SimplePose desiredPose) {
 	static const float closeDeltaX = 0.0254 / 2.0;
 	static const float closeDeltaY = 0.0254 / 2.0;
 	float deltaX = fabs(desiredPose.x_ - lastOdom_.pose.pose.position.x);
-	float deltaY = fabs(desiredPose.y_ - lastOdom_.pose.pose.position.y);
+	float deltaY = 0; //#####fabs(desiredPose.y_ - lastOdom_.pose.pose.position.y) * 0 /* ##### */;
 	return (deltaX < closeDeltaX) && (deltaY < closeDeltaY);
 }
 
@@ -151,13 +154,14 @@ SimplePose TablebotStrategy::currentMarkedPose() {
 
 
 SimplePose TablebotStrategy::currentPose() {
-	tf::Quaternion q(lastOdom_.pose.pose.orientation.x,
-					 lastOdom_.pose.pose.orientation.y,
-					 lastOdom_.pose.pose.orientation.z,
-					 lastOdom_.pose.pose.orientation.w);
-	tf::Matrix3x3 m(q);
-	double roll, pitch, yaw;
-	m.getRPY(roll, pitch, yaw);
+	// tf::Quaternion q(lastOdom_.pose.pose.orientation.x,
+	// 				 lastOdom_.pose.pose.orientation.y,
+	// 				 lastOdom_.pose.pose.orientation.z,
+	// 				 lastOdom_.pose.pose.orientation.w);
+	// tf::Matrix3x3 m(q);
+	// double roll, pitch, yaw;
+	// m.getRPY(roll, pitch, yaw);
+	float yaw = lastEulers_.x_ / 57.2958;
 
 	ROS_INFO_COND(debug_, "[TablebotStrategy::currentPose] x: %6.3f, y: %6.3f, eurler: %6.3f",
 			      lastOdom_.pose.pose.position.x,
@@ -192,6 +196,8 @@ const char* TablebotStrategy::goalName(GOAL goal) {
 	case kROTATE_COUNTERCLOCKWISE_A_BIT: return "kROTATE_COUNTERCLOCKWISE_A_BIT";
 	case kSUCCESS: return "kSUCCESS";
 	case kVICTORY_DANCE: return "kVICTORY_DANCE";
+	case kVICTORY_DANCE_LEFT: return "kVICTORY_DANCE_LEFT";
+	case kVICTORY_DANCE_RIGHT: return "kVICTORY_DANCE_RIGHT";
 	case kWIGGLE_LEFT_A_BIT: return "kWIGGLE_LEFT_A_BIT";
 	case kWIGGLE_RIGHT_A_BIT: return "kWIGGLE_RIGHT_A_BIT";
 	default: return "<<UNKNOWN GOAL>>";
@@ -199,7 +205,7 @@ const char* TablebotStrategy::goalName(GOAL goal) {
 }
 
 SimplePose TablebotStrategy::goalPose(SimplePose originalPose, float changeEuler, float distance) {
-	float changeX = cos((originalPose.euler_ + changeEuler) * 0.0174533) * distance;
+	float changeX = -distance;
 	float changeY = sin((originalPose.euler_ + changeEuler) * 0.0174533) * distance;
 	// float partA = sin(originalPose.euler_ + changeEuler);
 	// float partB = partA * distance;
@@ -230,7 +236,7 @@ void TablebotStrategy::handleArduinoSensors(const lysander::ArduinoSensors::Cons
 	frontRightMm_ = arduino_sensors->frontRightMm;
 	backLeftMm_ = arduino_sensors->backLeftMm;
 	backRightMm_ = arduino_sensors->backRightMm;
-	lastEulers_ = Eulers(currentPose().euler_ /* arduino_sensors->euler_x */,
+	lastEulers_ = Eulers(arduino_sensors->euler_x,
 						 arduino_sensors->euler_y,
 						 arduino_sensors->euler_z);
 	ROS_INFO_COND(debug_, "[TablebotStrategy::handleArduinoSensors] frontLeftMm: %6.1f, frontRightMm: %6.1f, backLeftMm: %6.1f, backRightMm: %6.1f, tofReadCount: %d, x: %6.3f, y: %6.3f, z: %6.3f",
@@ -273,8 +279,12 @@ void TablebotStrategy::pushGoal(GOAL goal) {
 
 
 float TablebotStrategy::smallestEulerAngleBetween(float a1, float a2) {
-	float result = 180.0 - abs(abs(a1 - a2) - 180.0);
-	return result;
+	//float result = 180.0 - abs(abs(a1 - a2) - 180.0);
+	float diff = a1 -a2;
+	if (diff > 180) diff = diff - 360.0;
+	if (diff < -180) diff = diff + 360.0;
+
+	return fabs(diff);
 }
 
 void TablebotStrategy::solveChallenge1() {
@@ -378,6 +388,37 @@ void TablebotStrategy::solveChallenge1() {
 			return;
 			break;
 
+		case kVICTORY_DANCE:
+			popGoal();
+			pushGoal(kSUCCESS);
+			pushGoal(kVICTORY_DANCE_RIGHT);
+			pushGoal(kVICTORY_DANCE_LEFT);
+			pushGoal(kVICTORY_DANCE_RIGHT);
+			pushGoal(kVICTORY_DANCE_LEFT);
+			pushGoal(kVICTORY_DANCE_RIGHT);
+			pushGoal(kVICTORY_DANCE_LEFT);
+			pushGoal(kVICTORY_DANCE_RIGHT);
+			pushGoal(kVICTORY_DANCE_LEFT);
+			break;
+
+		case kVICTORY_DANCE_LEFT:
+			if (rotationComplete(&TablebotStrategy::stillNeedToDamceLeft, kCOUNTERCLOCKWISE)) {
+				ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] kVICTORY_DANCE_LEFT completed rotation");
+				stop();
+				popGoal();
+			}
+
+			break;
+
+		case kVICTORY_DANCE_RIGHT:
+			if (rotationComplete(&TablebotStrategy::stillNeedToDamceRight, kCLOCKWISE)) {
+				ROS_INFO_COND(debug_, "[TablebotStrategy::solveChallenge1] kVICTORY_DANCE_RIGHT completed rotation");
+				stop();
+				popGoal();
+			}
+
+			break;
+
 		default:
 			ROS_ERROR("[TablebotStrategy::solveChallenge1] invalid goal: %d", currentGoal());
 			exit(-1);
@@ -437,6 +478,7 @@ bool TablebotStrategy::findEdgeShouldContinue() {
 
 }
 
+
 bool TablebotStrategy::rotationComplete(ContinueTestFn continueTestFn, ROTATE_DIRECTION rotateDirection) {
 	if ((this->*continueTestFn)()) {
 		geometry_msgs::Twist cmdVel;
@@ -452,6 +494,43 @@ bool TablebotStrategy::rotationComplete(ContinueTestFn continueTestFn, ROTATE_DI
 	}
 }
 
+
+bool TablebotStrategy::stillNeedToDamceLeft() {
+	float eulerGoal = fabs(currentMarkedPose().euler_ - 15);
+	float eulerDiff = smallestEulerAngleBetween(lastEulers_.x_, eulerGoal);
+	bool done = abs(eulerDiff) < 5.0;
+	ROS_INFO_COND(debug_,
+				  "[TablebotStrategy::stillNeedToDamceLeft]"
+				  " currentMarkedPose().euler_: %6.3f"
+				  ", eulerGoal: %6.3f"
+				  ", eulerDiff: %6.3f"
+				  ", done: %d",
+				  currentMarkedPose().euler_,
+				  eulerGoal,
+				  eulerDiff,
+				  done);
+	return !done;	
+}
+
+
+bool TablebotStrategy::stillNeedToDamceRight() {
+	float eulerGoal = fabs(currentMarkedPose().euler_ + 15);
+	float eulerDiff = smallestEulerAngleBetween(lastEulers_.x_, eulerGoal);
+	bool done = abs(eulerDiff) < 5.0;
+	ROS_INFO_COND(debug_,
+				  "[TablebotStrategy::stillNeedToDamceRight]"
+				  " currentMarkedPose().euler_: %6.3f"
+				  ", eulerGoal: %6.3f"
+				  ", eulerDiff: %6.3f"
+				  ", done: %d",
+				  currentMarkedPose().euler_,
+				  eulerGoal,
+				  eulerDiff,
+				  done);
+	return !done;	
+}
+
+
 bool TablebotStrategy::stillNeedToRotateAwayFromFrontLeftSensor() {
 	return frontLeftEdgeFound() && !frontRightEdgeFound();
 }
@@ -463,13 +542,17 @@ bool TablebotStrategy::stillNeedToRotateAwayFromFrontRightSensor() {
 
 
 bool TablebotStrategy::stillNeedToRotate180() {
-	float eulerGoal = 180.0 - abs(currentMarkedPose().euler_);
+	float eulerGoal = fabs(180 + currentMarkedPose().euler_);
 	float eulerDiff = smallestEulerAngleBetween(lastEulers_.x_, eulerGoal);
 	bool done = abs(eulerDiff) < 5.0;
 	ROS_INFO_COND(debug_,
 				  "[TablebotStrategy::stillNeedToRotate180]"
-				  " eulerDiff: %6.3f"
+				  " currentMarkedPose().euler_: %6.3f"
+				  ", eulerGoal: %6.3f"
+				  ", eulerDiff: %6.3f"
 				  ", done: %d",
+				  currentMarkedPose().euler_,
+				  eulerGoal,
 				  eulerDiff,
 				  done);
 	return !done;	

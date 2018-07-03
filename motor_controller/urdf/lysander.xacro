@@ -1,0 +1,197 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="lysander">
+
+  <xacro:property name="body_length" value="0.6096" />>
+  <xacro:property name="body_width" value="0.3048" />
+
+  <xacro:property name="wheel_forward_of_center_distance" value=".0762" />>
+  <xacro:property name="wheel_radius" value="0.0762" />
+  <xacro:property name="wheel_spacer" value="0.00635" />>
+  <xacro:property name="wheel_width" value="0.040" />
+
+  <!--xacro:include filename="$(find m1)/robots/m1.gazebo" /-->
+  <gazebo>
+    <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+      <robotNamespace>/lysander</robotNamespace>
+      <robotSimType>gazebo_ros_control/DefaultRobotHWSim</robotSimType>
+    </plugin>
+  </gazebo>
+  
+  <!-- Materials -->
+  <material name="base">
+    <color rgba="0.0 0.25 0.53 1" />>
+  </material>
+  
+  <material name="wheel">
+    <color rgba="0.6 0.5 0.5 1" />
+  </material>
+
+  <!-- Parts -->
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <box size="${body_length} ${body_width} 0.12"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0.085"/>
+      <material name="base" />
+    </visual>
+    <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <mass value="1" />
+        <inertia
+          ixx="1.0" ixy="0.0" ixz="0.0"
+          iyy="1.0" iyz="0.0"
+          izz="1.0" />
+    </inertial>
+  </link>
+  
+  <link name="lwheel">
+    <visual>
+      <geometry>
+        <cylinder length="${wheel_width}" radius="${wheel_radius}" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <material name="wheel" />
+    </visual>
+    <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <mass value="1" />
+        <inertia
+          ixx="1.0" ixy="0.0" ixz="0.0"
+          iyy="1.0" iyz="0.0"
+          izz="1.0" />
+    </inertial>
+  </link>
+  
+  <joint name="base_to_lwheel" type="continuous">
+    <parent link="base_link"/>
+    <child link="lwheel"/>
+    <origin xyz="${wheel_forward_of_center_distance} ${(body_width/2)+wheel_spacer+wheel_width} ${wheel_radius}" rpy="1.5708 0 0"/>
+    <axis xyz="0 0 1" />
+  </joint>
+ 
+  <transmission name="left_wheel">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="base_to_lwheel">
+      <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="left_motor">
+      <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+  
+  <link name="rwheel">
+    <visual>
+      <geometry>
+        <cylinder length="${wheel_width}" radius="${wheel_radius}" />
+      </geometry>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <material name="wheel" />
+    </visual>
+    <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <mass value="1" />
+        <inertia
+          ixx="1.0" ixy="0.0" ixz="0.0"
+          iyy="1.0" iyz="0.0"
+          izz="1.0" />
+    </inertial>
+  </link>
+  
+  <joint name="base_to_rwheel" type="continuous">
+    <parent link="base_link"/>
+    <child link="rwheel"/>
+    <origin xyz="${wheel_forward_of_center_distance} -${(body_width/2)+wheel_spacer+wheel_width} ${wheel_radius}" rpy="-1.5708 0 0"/>
+    <axis xyz="0 0 1" />
+  </joint>
+  
+  <transmission name="right_wheel">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="base_to_rwheel">
+      <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="right_motor">
+      <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+  
+  <link name="fwheel_attach">
+    <visual>
+      <geometry>
+        <cylinder length="0.060" radius="0.023"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.13 0 0.08"/>
+      <material name="white">
+        <color rgba="0.3 0.4 0.5 1"/>
+      </material>
+    </visual>
+    <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <mass value="1" />
+        <inertia
+          ixx="1.0" ixy="0.0" ixz="0.0"
+          iyy="1.0" iyz="0.0"
+          izz="1.0" />
+    </inertial>
+  </link>
+  
+  <joint name="base_to_fattach" type="fixed">
+    <parent link="base_link"/>
+    <child link="fwheel_attach"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+  
+  <link name="fwheel">
+    <visual>
+      <geometry>
+        <cylinder length="0.005" radius="0.020"/>
+      </geometry>
+      <origin rpy="1.578 0 0" xyz="0 0 0"/>
+      <material name="wheel" />
+    </visual>
+    <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <mass value="1" />
+        <inertia
+          ixx="1.0" ixy="0.0" ixz="0.0"
+          iyy="1.0" iyz="0.0"
+          izz="1.0" />
+    </inertial>
+  </link>
+
+  <joint name="base_to_fwheel" type="continuous">
+    <parent link="base_link"/>
+    <child link="fwheel"/>
+    <origin xyz="0.13 0 0.02" rpy="0 0 0"/>
+    <axis xyz="0 0 1" />
+  </joint>
+  
+  <link name="scanner">
+    <visual>
+      <geometry>
+        <box size="0.015 0.045 0.015"/>
+      </geometry>
+      <origin rpy="0 0 0" xyz="0.022 0 0.015"/>
+      <material name="black">
+        <color rgba="0.5 0 0 1"/>
+      </material>
+    </visual>
+    <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <mass value="1" />
+        <inertia
+          ixx="1.0" ixy="0.0" ixz="0.0"
+          iyy="1.0" iyz="0.0"
+          izz="1.0" />
+    </inertial>
+  </link>
+  
+  <joint name="base_to_scanner" type="fixed">
+    <parent link="base_link"/>
+    <child link="scanner"/>
+    <origin xyz="0.105 0 0.22" rpy="0 0 0"/>
+  </joint>
+  
+</robot>

@@ -1,0 +1,22 @@
+<launch>
+    
+    
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find motor_controller)/urdf/lysander.xacro" />
+
+  <!-- Load joint controller configurations from YAML file to parameter server -->
+  <rosparam file="$(find motor_controller)/config/controller.yaml" command="load"/>
+
+  <!-- load the controllers -->
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
+    output="screen" ns="/lysander" args="head_pan_joint_position_controller head_tilt_joint_position_controller torso_joint_position_controller joint_state_controller"/>
+
+  
+  <!-- send fake joint values -->
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+    <param name="use_gui" value="TRUE"/>
+  </node>
+
+  <!-- Combine joint values -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher"/>
+
+</launch>

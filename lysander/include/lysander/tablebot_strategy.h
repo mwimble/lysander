@@ -69,6 +69,8 @@ namespace lysander {
 			kCOUNTERCLOCKWISE
 		} ROTATE_DIRECTION;
 
+		bool stillNeedToDamceLeft();
+		bool stillNeedToDamceRight();
 		bool stillNeedToRotate180();
 		bool stillNeedToRotateAwayFromFrontLeftSensor();
 		bool stillNeedToRotateAwayFromFrontRightSensor();
@@ -102,6 +104,8 @@ namespace lysander {
 			kROTATE_COUNTERCLOCKWISE_A_BIT,
 			kSUCCESS,
 			kVICTORY_DANCE,
+			kVICTORY_DANCE_LEFT,
+			kVICTORY_DANCE_RIGHT,
 			kWIGGLE_LEFT_A_BIT,
 			kWIGGLE_RIGHT_A_BIT
 		} GOAL;

@@ -21,6 +21,8 @@ find_package(catkin REQUIRED COMPONENTS
   tf
 )
 
+find_package(Boost REQUIRED COMPONENTS system thread)
+
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
@@ -63,6 +65,24 @@ include_directories(
 )
 
 ## Declare a C++ executable
+add_executable (
+  WRDifferentialDrive_node
+  src/WRDifferentialDrive_node.cpp
+  src/WRDifferentialDrive.cpp
+)
+
+add_dependencies(
+  WRDifferentialDrive_node
+  ${${PROJECT_NAME}_EXPORTED_TARGETS} 
+  ${catkin_EXPORTED_TARGETS}
+)
+
+target_link_libraries(
+  WRDifferentialDrive_node
+  boost_system boost_thread
+  ${catkin_LIBRARIES} 
+)
+
 add_executable(motor_controller_node src/motorController.cpp src/motorSkidSteerDrive.cpp)
 add_executable(square_node src/squareTest.cpp)
 add_executable(trace_rotation_node src/traceRotation.cpp)
