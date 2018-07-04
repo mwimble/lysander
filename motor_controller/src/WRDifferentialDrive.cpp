@@ -9,6 +9,26 @@ WRDifferentialDrive::WRDifferentialDrive(ros::NodeHandle &nh, urdf::Model *urdf_
 		model_ = urdf_model;
 	}
 
+	std::vector< boost::shared_ptr< urdf::Link > > links;
+	model_->getLinks(links);
+	// std::vector< boost::shared_ptr< urdf::Link > >::iterator it;
+	// ROS_INFO_STREAM("[WRDifferentialDrive::WRDifferentialDrive] found " << links.size() << " links");
+	// for (it = links.begin(); it != links.end(); it++) {
+	// 	int foo = 3;
+	// 	//ROS_INFO_STREAM("[WRDifferentialDrive::WRDifferentialDrive] link name: " << *it.name);
+	// }
+
+	for (auto link: links) {
+//		boost::shared_ptr<urdf::Link> l = link;
+		auto l = *link;
+		ROS_INFO_STREAM("[WRDifferentialDrive::WRDifferentialDrive] link name: " << l.name);
+		for (auto joint: l.child_joints) {
+			auto j = *joint;
+			ROS_INFO_STREAM("[WRDifferentialDrive::WRDifferentialDrive] ... joint name: " << j.name);
+		}
+
+	}
+
    // // connect and register the joint state interface
    // hardware_interface::JointStateHandle state_handle_a("A", &pos[0], &vel[0], &eff[0]);
    // jnt_state_interface.registerHandle(state_handle_a);

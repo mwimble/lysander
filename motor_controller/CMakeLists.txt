@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(motor_controller)
 
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread" )
+set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -ggdb -g3 -pthread" )
 SET(FLAGS "-g -ggdb -g3")
 
 ## Add support for C++11, supported in ROS Kinetic and newer
