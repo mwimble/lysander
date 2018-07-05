@@ -2,6 +2,7 @@
 #define __LYSANDER_MOTOR
 
 #include "ros/ros.h"
+#include <time.h>
 #include "WRDifferentialDrive.h"
 
 class LysanderMotor : public WRDifferentialDrive {
@@ -19,9 +20,19 @@ public:
 	virtual void write(const ros::Time& time, const ros::Duration& period);
 
 private:
+	static const double kBILLION;
+
 	ros::NodeHandle nh_;
 
 	urdf::Model *urdf_model_;
+
+	// Time.
+	ros::Duration elapsedTime_;
+	ros::Duration expectedControlLoopDuration_;
+	struct timespec lastTime_;
+	double controlLoopMaxAllowedDurationDeviation_;
+	struct timespec now_;
+
 
 	/** \brief ROS Controller Manager and Runner
 	 *
