@@ -41,8 +41,10 @@
   <!-- Use test_depend for packages you need only for testing: -->
   <!--   <test_depend>gtest</test_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
+  <depend>controller_manager</depend>
   <depend>dynamic_reconfigure</depend>
   <depend>geometry_msgs</depend>
+  <depend>hardware_interface</depend>
   <depend>message_generation</depend>
   <depend>rosconsole</depend>
   <depend>roscpp</depend>

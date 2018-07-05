@@ -9,8 +9,10 @@ SET(FLAGS "-g -ggdb -g3")
 add_definitions(-std=c++11)
 
 find_package(catkin REQUIRED COMPONENTS
+  controller_manager
   dynamic_reconfigure
   geometry_msgs
+  hardware_interface
   message_generation
   nav_msgs
   rosconsole
@@ -68,6 +70,7 @@ include_directories(
 ## Declare a C++ executable
 add_executable (
   WRDifferentialDrive_node
+  src/LysanderMotor.cpp
   src/WRDifferentialDrive_node.cpp
   src/WRDifferentialDrive.cpp
 )

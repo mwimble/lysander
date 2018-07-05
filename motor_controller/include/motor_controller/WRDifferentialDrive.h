@@ -1,6 +1,7 @@
 #ifndef __WRDIFFERENTIAL_DRIVE
 #define __WRDIFFERENTIAL_DRIVE
 
+#include <controller_manager/controller_manager.h>
 #include <hardware_interface/joint_command_interface.h>
 #include <hardware_interface/joint_state_interface.h>
 #include <hardware_interface/robot_hw.h>
@@ -19,7 +20,24 @@ public:
 	* Initialize the robot hardware interface.
 	*/
 	virtual void init();
+
+	/**
+	  * Reads data from the robot HW
+	  *
+	  * \param time The current time
+	  * \param period The time passed since the last call to \ref read
+	  */
+	virtual void read(const ros::Time& time, const ros::Duration& period) {}
+
 	void reset();
+
+	/**
+ 	 * Writes data to the robot HW
+	 *
+	 * \param time The current time
+	 * \param period The time passed since the last call to \ref write
+	 */
+	virtual void write(const ros::Time& time, const ros::Duration& period) {}
 
 
 private:
