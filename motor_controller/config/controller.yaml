@@ -4,11 +4,13 @@ lysander:
     publish_rate: 50
 
   base_to_lwheel_velocity_controller:
-    type: effort_controllers/JointVelocityController
-    joint: base_to_lwheel
-    pid: {p: 100.0, i: 0.01, d: 10.0}
+    type: effort_controllers/JointVelocityController  # From URDF <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+    joint: base_to_lwheel                             # From URDF <joint name="base_to_lwheel" type="continuous">
+    pid: {p: 8762.98571, i: 1535.49646, d: 0.0}       # From IonMotion setup program.
 
   base_to_rwheel_velocity_controller:
-    type: effort_controllers/JointVelocityController
-    joint: base_to_rwheel
-    pid: {p: 100.0, i: 0.01, d: 10.0}
+    type: effort_controllers/JointVelocityController  # From URDF <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+    joint: base_to_rwheel                             # From URDF <joint name="base_to_rwheel" type="continuous">
+    pid: {p: 9542.41265, i: 1773.65086, d: 0.0}       # From IonMotion setup program.
+
+  joint_names: [base_to_lwheel, base_to_rwheel]
