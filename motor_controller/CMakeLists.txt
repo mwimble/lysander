@@ -71,6 +71,7 @@ include_directories(
 add_executable (
   WRDifferentialDrive_node
   src/LysanderMotor.cpp
+  src/RoboClawDriver.cpp
   src/WRDifferentialDrive_node.cpp
   src/WRDifferentialDrive.cpp
 )

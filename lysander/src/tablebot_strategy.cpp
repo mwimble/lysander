@@ -92,7 +92,7 @@ bool TablebotStrategy::closeToDesiredPose(SimplePose desiredPose) {
 	static const float closeDeltaX = 0.0254 / 2.0;
 	static const float closeDeltaY = 0.0254 / 2.0;
 	float deltaX = fabs(desiredPose.x_ - lastOdom_.pose.pose.position.x);
-	float deltaY = 0; //#####fabs(desiredPose.y_ - lastOdom_.pose.pose.position.y) * 0 /* ##### */;
+	float deltaY = fabs(desiredPose.y_ - lastOdom_.pose.pose.position.y);
 	return (deltaX < closeDeltaX) && (deltaY < closeDeltaY);
 }
 
@@ -161,15 +161,26 @@ SimplePose TablebotStrategy::currentPose() {
 	// tf::Matrix3x3 m(q);
 	// double roll, pitch, yaw;
 	// m.getRPY(roll, pitch, yaw);
-	float yaw = lastEulers_.x_ / 57.2958;
+	static const float kRADIANS_TO_DEGREES = 57.2958;
+	float yaw = lastEulers_.x_ / kRADIANS_TO_DEGREES;
 
-	ROS_INFO_COND(debug_, "[TablebotStrategy::currentPose] x: %6.3f, y: %6.3f, eurler: %6.3f",
+	ROS_INFO_COND(debug_, 
+				  "[TablebotStrategy::currentPose] x: %6.3f, y: %6.3f, eurler: %6.3f"
+				  ", q: %6.3f, %6.3f, %6.3f, %6.3f",
 			      lastOdom_.pose.pose.position.x,
 			      lastOdom_.pose.pose.position.y,
-			      yaw * 57.2958);
+			      yaw * 57.2958,
+				  lastOdom_.pose.pose.orientation.x,
+				  lastOdom_.pose.pose.orientation.y,
+				  lastOdom_.pose.pose.orientation.z,
+				  lastOdom_.pose.pose.orientation.w);
 	return SimplePose(lastOdom_.pose.pose.position.x,
 					  lastOdom_.pose.pose.position.y,
-					  yaw * 57.2958);
+					  yaw * 57.2958,
+					  tf::Quaternion(lastOdom_.pose.pose.orientation.x,
+					  				 lastOdom_.pose.pose.orientation.y,
+					  				 lastOdom_.pose.pose.orientation.z,
+					  				 lastOdom_.pose.pose.orientation.w));
 }
 
 
@@ -205,19 +216,26 @@ const char* TablebotStrategy::goalName(GOAL goal) {
 }
 
 SimplePose TablebotStrategy::goalPose(SimplePose originalPose, float changeEuler, float distance) {
-	float changeX = -distance;
-	float changeY = sin((originalPose.euler_ + changeEuler) * 0.0174533) * distance;
-	// float partA = sin(originalPose.euler_ + changeEuler);
-	// float partB = partA * distance;
-	// float partC = originalPose.y_ + partB;
-	// ROS_INFO_COND(debug_, "partA: %6.3f, partB: %6.3f, partC: %6.3f", partA, partB, partC);
+	tf::Quaternion q = originalPose.q_;
+	tf::Matrix3x3 m(q);
+	double roll, pitch, yaw;
+	m.getRPY(roll, pitch, yaw);
+
+	static const float degreesToRadians = 0.017453292519943;
+	
+	float changeX = cos(yaw + (changeEuler * degreesToRadians)) * distance;
+	float changeY = sin(yaw + (changeEuler * degreesToRadians)) * distance;
 	ROS_INFO_COND(debug_,
 				  "[TablebotStrategy::goalPose] original x: %6.3f, y: %6.3f, euler: %6.3f"
+				  ", rpy: %6.3f, %6.3f, %6.3f"
 				  ", changeEuler: %6.3f, distance: %6.3f"
 				  ", changeX: %6.3f, changeY: %6.3f",
 				  originalPose.x_,
 				  originalPose.y_,
 				  originalPose.euler_,
+				  roll,
+				  pitch,
+				  yaw,
 				  changeEuler,
 				  distance,
 				  changeX,
@@ -225,11 +243,16 @@ SimplePose TablebotStrategy::goalPose(SimplePose originalPose, float changeEuler
 
 	return SimplePose(originalPose.x_ + changeX,
 					  originalPose.y_ + changeY,
-					  constrainEulerAngle(originalPose.euler_ + changeEuler));
+					  constrainEulerAngle(originalPose.euler_ + changeEuler),
+					  q);
 }
 
 
 void TablebotStrategy::handleArduinoSensors(const lysander::ArduinoSensors::ConstPtr& arduino_sensors) {
+	tf::Quaternion q = tf::Quaternion(lastOdom_.pose.pose.orientation.x,
+					 lastOdom_.pose.pose.orientation.y,
+					 lastOdom_.pose.pose.orientation.z,
+					 lastOdom_.pose.pose.orientation.w);
 	tofFound_ = true;
 	tofReadCount++;
 	frontLeftMm_ = arduino_sensors->frontLeftMm;
@@ -238,7 +261,8 @@ void TablebotStrategy::handleArduinoSensors(const lysander::ArduinoSensors::Cons
 	backRightMm_ = arduino_sensors->backRightMm;
 	lastEulers_ = Eulers(arduino_sensors->euler_x,
 						 arduino_sensors->euler_y,
-						 arduino_sensors->euler_z);
+						 arduino_sensors->euler_z,
+						 q);
 	ROS_INFO_COND(debug_, "[TablebotStrategy::handleArduinoSensors] frontLeftMm: %6.1f, frontRightMm: %6.1f, backLeftMm: %6.1f, backRightMm: %6.1f, tofReadCount: %d, x: %6.3f, y: %6.3f, z: %6.3f",
 			 arduino_sensors->frontLeftMm,
 			 arduino_sensors->frontRightMm,
@@ -255,10 +279,26 @@ void TablebotStrategy::handleOdom(const nav_msgs::Odometry::ConstPtr& odom) {
 	lastOdom_ = *odom;
 	odomFound_ = true;
 	odomReadCount_++;
-	ROS_INFO_COND(debug_, "[TablebotStrategy::handleOdom] odomReadCount_: %d, x: %7.3f, y: %7.3f",
+
+	tf::Quaternion q(lastOdom_.pose.pose.orientation.x,
+					 lastOdom_.pose.pose.orientation.y,
+					 lastOdom_.pose.pose.orientation.z,
+					 lastOdom_.pose.pose.orientation.w);
+	tf::Matrix3x3 m(q);
+	double roll, pitch, yaw;
+	m.getRPY(roll, pitch, yaw);
+ 	ROS_INFO_COND(debug_, 
+				  "[TablebotStrategy::handleOdom] odomReadCount_: %d, x: %7.3f, y: %7.3f"
+				  ", q: %6.3f, %6.3f, %6.3f, %6.3f"
+				  ", rpy: %6.3f, %6.3f, %6.3f",
 				  odomReadCount_,
 				  lastOdom_.pose.pose.position.x,
-				  lastOdom_.pose.pose.position.y);
+				  lastOdom_.pose.pose.position.y,
+				  lastOdom_.pose.pose.orientation.x,
+				  lastOdom_.pose.pose.orientation.y,
+				  lastOdom_.pose.pose.orientation.z,
+				  lastOdom_.pose.pose.orientation.w,
+				  roll, pitch, yaw);
 }
 
 
@@ -494,9 +534,10 @@ bool TablebotStrategy::rotationComplete(ContinueTestFn continueTestFn, ROTATE_DI
 	}
 }
 
+static const float danceYawDegrees = 5;
 
 bool TablebotStrategy::stillNeedToDamceLeft() {
-	float eulerGoal = fabs(currentMarkedPose().euler_ - 15);
+	float eulerGoal = currentMarkedPose().euler_ - danceYawDegrees;
 	float eulerDiff = smallestEulerAngleBetween(lastEulers_.x_, eulerGoal);
 	bool done = abs(eulerDiff) < 5.0;
 	ROS_INFO_COND(debug_,
@@ -514,7 +555,7 @@ bool TablebotStrategy::stillNeedToDamceLeft() {
 
 
 bool TablebotStrategy::stillNeedToDamceRight() {
-	float eulerGoal = fabs(currentMarkedPose().euler_ + 15);
+	float eulerGoal = currentMarkedPose().euler_ + danceYawDegrees;
 	float eulerDiff = smallestEulerAngleBetween(lastEulers_.x_, eulerGoal);
 	bool done = abs(eulerDiff) < 5.0;
 	ROS_INFO_COND(debug_,

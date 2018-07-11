@@ -20,6 +20,7 @@
     args="
       base_to_lwheel_velocity_controller
       base_to_rwheel_velocity_controller
+      diff_drive_controller
       joint_state_controller
       "/>
 

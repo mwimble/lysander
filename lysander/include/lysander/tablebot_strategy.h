@@ -2,31 +2,37 @@
 
 #include <lysander/ArduinoSensors.h>
 #include <nav_msgs/Odometry.h>
+#include <tf/tf.h>
 
 namespace lysander {
 
 	// Arduino sensors data.
 	class Eulers {
 	public:
-		float x_;
-		float y_;
-		float z_;
+		float x_;	// IMU x euler
+		float y_;	// IMU y euler
+		float z_;	// IMU z euler
+		tf::Quaternion q_;	// Motor's quaternion
+
 		Eulers() {
 			x_ = 0;
 			y_ = 0;
 			z_ = 0;
+			q_ = tf::Quaternion(0, 0, 0, 0);
 		}
 
-		Eulers(float x, float y, float z) {
+		Eulers(float x, float y, float z, tf::Quaternion q) {
 			x_ = x;
 			y_ = y;
 			z_ = z;
+			q_ = q;
 		}
 
 		Eulers(const Eulers& other) {
 			x_ = other.x_;
 			y_ = other.y_;
 			z_ = other.z_;
+			q_ = other.q_;
 		}
 	};
 
@@ -35,22 +41,26 @@ namespace lysander {
 		float x_;
 		float y_;
 		float euler_;
+		tf::Quaternion q_;
 		SimplePose() {
 			x_ = 0;
 			y_ = 0;
 			euler_ = 0;
+			q_ = tf::Quaternion(0, 0, 0, 0);
 		}
 
-		SimplePose(float x, float y, float euler) {
+		SimplePose(float x, float y, float euler, tf::Quaternion q) {
 			x_ = x;
 			y_ = y;
 			euler_ = euler;
+			q_ = q;
 		}
 
 		SimplePose(const SimplePose& other) {
 			x_ = other.x_;
 			y_ = other.y_;
 			euler_ = other.euler_;
+			q_ = other.q_;
 		}
 	};
 
