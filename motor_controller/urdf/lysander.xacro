@@ -1,13 +1,21 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="lysander">
 
-  <xacro:property name="body_length" value="0.3048" />>
+  <xacro:property name="body_length" value="0.3048" />
   <xacro:property name="body_width" value="0.2286" />
-
-  <xacro:property name="wheel_forward_of_center_distance" value=".0762" />>
-  <xacro:property name="wheel_radius" value="0.376991118430775" />
-  <xacro:property name="wheel_spacer" value="0.00635" />>
+  <xacro:property name="body_height" value="0.0508" />
+  <xacro:property name="fwheel_offset" value="-0.13" />
+  <xacro:property name="motor_height" value="0.0254" />
+  <xacro:property name="scanner_height" value="0.015" />
+  <xacro:property name="scanner_length" value="0.045" />
+  <xacro:property name="scanner_width" value="0.015" />
+  <xacro:property name="wheel_forward_of_center_distance" value=".0762" />
+  <xacro:property name="wheel_radius" value="0.06" />
+  <xacro:property name="wheel_spacer" value="0.00254" />
   <xacro:property name="wheel_width" value="0.060" />
+  <xacro:property name="body_center_height" value="${wheel_radius+(motor_height/2)+(body_height/2)}" />
+  <xacro:property name="scanner_x_offset" value="${(body_length/2)-(scanner_width/2)}" />
+  <xacro:property name="scanner_z_offset" value="${body_center_height+(body_height/2)+(scanner_height/2)+.00508}" />
 
   <!--xacro:include filename="$(find m1)/robots/m1.gazebo" /-->
   <gazebo>
@@ -30,9 +38,9 @@
   <link name="base_link">
     <visual>
       <geometry>
-        <box size="${body_length} ${body_width} 0.12"/>
+        <box size="${body_length} ${body_width} 0.0508"/>
       </geometry>
-      <origin rpy="0 0 0" xyz="0 0 0.085"/>
+      <origin rpy="0 0 0" xyz="0 0 ${body_center_height}"/>
       <material name="base" />
     </visual>
     <inertial>
@@ -71,7 +79,7 @@
   <joint name="base_to_lwheel" type="continuous">
     <parent link="base_link"/>
     <child link="lwheel"/>
-    <origin xyz="${wheel_forward_of_center_distance} ${(body_width/2)+wheel_spacer+wheel_width} ${wheel_radius}" rpy="1.5708 0 0"/>
+    <origin xyz="${wheel_forward_of_center_distance} ${(body_width/2)+wheel_spacer+(wheel_width/2)} ${wheel_width}" rpy="1.5708 0 0"/>
     <axis xyz="0 0 1" />
     <limit effort="0.0"  velocity="0.75" />
   </joint>
@@ -113,7 +121,7 @@
   <joint name="base_to_rwheel" type="continuous">
     <parent link="base_link"/>
     <child link="rwheel"/>
-    <origin xyz="${wheel_forward_of_center_distance} -${(body_width/2)+wheel_spacer+wheel_width} ${wheel_radius}" rpy="-1.5708 0 0"/>
+    <origin xyz="${wheel_forward_of_center_distance} -${(body_width/2)+wheel_spacer+(wheel_width/2)} ${wheel_width}" rpy="-1.5708 0 0"/>
     <axis xyz="0 0 1" />
     <limit effort="0.0"  velocity="0.75" />
   </joint>
@@ -134,7 +142,7 @@
       <geometry>
         <cylinder length="0.060" radius="0.023"/>
       </geometry>
-      <origin rpy="0 0 0" xyz="0.13 0 0.08"/>
+      <origin rpy="0 0 0" xyz="${fwheel_offset} 0 0.08"/>
       <material name="white">
         <color rgba="0.3 0.4 0.5 1"/>
       </material>
@@ -176,16 +184,16 @@
   <joint name="base_to_fwheel" type="continuous">
     <parent link="base_link"/>
     <child link="fwheel"/>
-    <origin xyz="0.13 0 0.02" rpy="0 0 0"/>
+    <origin xyz="${fwheel_offset} 0 0.02" rpy="0 0 0"/>
     <axis xyz="0 0 1" />
   </joint>
   
   <link name="scanner">
     <visual>
       <geometry>
-        <box size="0.015 0.045 0.015"/>
+        <box size="${scanner_width} ${scanner_length} ${scanner_height}"/>
       </geometry>
-      <origin rpy="0 0 0" xyz="0.022 0 0.015"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
       <material name="black">
         <color rgba="0.5 0 0 1"/>
       </material>
@@ -203,7 +211,7 @@
   <joint name="base_to_scanner" type="fixed">
     <parent link="base_link"/>
     <child link="scanner"/>
-    <origin xyz="0.105 0 0.22" rpy="0 0 0"/>
+    <origin xyz="${scanner_x_offset} 0  ${scanner_z_offset}" rpy="0 0 0"/>
   </joint>
   
 </robot>
