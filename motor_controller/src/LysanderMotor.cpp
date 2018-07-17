@@ -22,6 +22,7 @@ void LysanderMotor::controlLoop() {
 }
 
 void LysanderMotor::read(const ros::Time& time, const ros::Duration& period) {
+  WRDifferentialDrive::read(time, period);
 }
 
 
@@ -49,7 +50,7 @@ void LysanderMotor::update() {
 
 
 void LysanderMotor::write(const ros::Time& time, const ros::Duration& period) {
-
+  WRDifferentialDrive::write(time, period);
 }
 
 

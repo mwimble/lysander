@@ -12,35 +12,8 @@
 #include <urdf/model.h>
 
 class WRDifferentialDrive : public hardware_interface::RobotHW {
-public:
-	WRDifferentialDrive(ros::NodeHandle &nh, urdf::Model *urdf_model = NULL) ;
-	~WRDifferentialDrive();
-
-	/**
-	* Initialize the robot hardware interface.
-	*/
-	virtual void init();
-
-	/**
-	  * Reads data from the robot HW
-	  *
-	  * \param time The current time
-	  * \param period The time passed since the last call to \ref read
-	  */
-	virtual void read(const ros::Time& time, const ros::Duration& period) {}
-
-	void reset();
-
-	/**
- 	 * Writes data to the robot HW
-	 *
-	 * \param time The current time
-	 * \param period The time passed since the last call to \ref write
-	 */
-	virtual void write(const ros::Time& time, const ros::Duration& period) {}
-
-
-private:
+ private:
+  private:
 	// Startup and shutdown of the internal node inside a roscpp program
 	ros::NodeHandle nh_;
 
@@ -84,6 +57,45 @@ private:
 	std::vector<double> jointVelocityLimits_;
 	std::vector<double> jointEffortLimits_;
 
+ public:
+	WRDifferentialDrive(ros::NodeHandle &nh, urdf::Model *urdf_model = NULL) ;
+	~WRDifferentialDrive();
+
+	/**
+	* Initialize the robot hardware interface.
+	*/
+	virtual void init();
+
+	/**
+	  * Reads data from the robot HW
+	  *
+	  * \param time The current time
+	  * \param period The time passed since the last call to \ref read
+	  */
+	virtual void read(const ros::Time& time, const ros::Duration& period) {
+	  for (int i = 0; i < jointVelocityCommand_.size(); i++) {
+	    ROS_INFO(
+		     "WRDifferentialDrive::read joint: %d, jointVelocityCommand_: %6.3f"
+		     ", jointPositionCommand_: %6.3f"
+		     ", jointEffortCommand_: %6.3f",
+		     i,
+		     jointVelocityCommand_[i],
+		     jointPositionCommand_[i],
+		     jointEffortCommand_[i]);
+	  }
+	}
+
+	void reset();
+
+	/**
+ 	 * Writes data to the robot HW
+	 *
+	 * \param time The current time
+	 * \param period The time passed since the last call to \ref write
+	 */
+	virtual void write(const ros::Time& time, const ros::Duration& period) {}
+
+ private:
 	void loadURDF(ros::NodeHandle &nh, std::string param_name);
 
 	/**
