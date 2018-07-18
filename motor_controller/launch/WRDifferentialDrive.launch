@@ -32,20 +32,6 @@
 	      diff_drive_controller
 	      joint_state_controller
 	      "/>
-    <!--node 
-	name="controller_spawner" 
-	pkg="controller_manager" 
-	type="spawner" 
-	respawn="false"
-	output="screen" 
-	ns="/lysander" 
-	args="
-	base_to_lwheel_velocity_controller
-	base_to_rwheel_velocity_controller
-	diff_drive_controller
-	joint_state_controller
-	"/-->
-    
     
     <!-- send fake joint values -->
     <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">

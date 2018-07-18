@@ -1,0 +1,72 @@
+<launch>
+  <group ns="/lysander">
+    <arg name="do_debug" default="false" />
+    <arg name="do_motor_controller" default="false" />
+    <arg name="gazebo_debug" default="false" />
+    <arg name="gui" default="true" />
+    <arg name="headless" default="false" />
+    <arg name="paused" default="false" />
+    <arg name="use_sim_time" default="true" />
+    <arg unless="$(arg do_debug)" name="prefix" value="" />
+    <arg     if="$(arg do_debug)" name="prefix" value="xterm -e gdb --args" />
+    
+    
+    <param 
+      name="/lysander/robot_description" 
+      command="$(find xacro)/xacro --inorder $(find motor_controller)/urdf/lysander.xacro" />
+
+    <!-- Load joint controller configurations from YAML file to parameter server -->
+    <rosparam file="$(find motor_controller)/config/controller.yaml" command="load" ns="/" />
+
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+      <arg name="world_name" value="$(find motor_controller)/worlds/lysander.world"/>
+      <arg name="debug" value="$(arg gazebo_debug)" />
+      <arg name="gui" value="$(arg gui)" />
+      <arg name="paused" value="$(arg paused)"/>
+      <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+      <arg name="headless" value="$(arg headless)"/>
+    </include>
+    
+    <node
+      args="-gazebo_namespace /lysander/gazebo -urdf -model lysander -param /lysander/robot_description"
+    	name="urdf_spawner"
+      output="screen"
+      pkg="gazebo_ros"
+      respawn="false"
+      type="spawn_model"
+      />
+    
+    <!-- load the controllers -->
+    <node 
+    	name="controller_spawner" 
+    	pkg="controller_manager" 
+    	type="spawner" 
+    	respawn="false"
+    	output="screen" 
+    	ns="/lysander" 
+    	args="
+	      --namespace=/lysander
+	      diff_drive_controller
+	      joint_state_controller
+	      "/>
+    
+    <!-- send fake joint values -->
+    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+      <param name="use_gui" value="TRUE"/>
+    </node>
+    
+    <!-- Combine joint values -->
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher">
+      <param name="publish_frequency" type="double" value="30.0" />>
+    </node>
+    
+    <!-- Start the motor controller -->
+    <node 
+      if="$(arg do_motor_controller)"
+      name="motor_controller_node" 
+      pkg="motor_controller" 
+      type="WRDifferentialDrive_node" 
+      launch-prefix="$(arg prefix)" />
+    
+  </group>
+</launch>

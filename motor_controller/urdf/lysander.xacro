@@ -20,8 +20,8 @@
   <!--xacro:include filename="$(find m1)/robots/m1.gazebo" /-->
   <gazebo>
     <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
-      <!--robotNamespace>/lysander</robotNamespace-->
       <robotSimType>gazebo_ros_control/DefaultRobotHWSim</robotSimType>
+      <legacyModeNS>true</legacyModeNS>
     </plugin>
   </gazebo>
   
@@ -33,6 +33,12 @@
   <material name="wheel">
     <color rgba="0.6 0.5 0.5 1" />
   </material>
+
+  <link name="world" />
+  <joint name="fixed" type="fixed" >
+    <parent link="world" />
+    <child link="base_link" />
+  </joint>
 
   <!-- Parts -->
   <link name="base_link">
