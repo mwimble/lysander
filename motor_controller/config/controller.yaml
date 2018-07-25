@@ -8,9 +8,10 @@ lysander:
     control_loop_hz: 5.0
     max_command_retries: 4
     max_seconds_uncommanded_travel: 0.5
-    port_address: 0x80
+    port_address: 128
     quad_pulses_per_meter: 5965.29
     usb_device_name: /dev/roboclaw
+    wheel_radius: 0.06
 
   joint_state_controller:
     type: joint_state_controller/JointStateController

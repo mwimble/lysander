@@ -2,6 +2,7 @@
 #include <boost/assign.hpp>
 #include <fcntl.h>
 #include <iostream>
+#include <math.h>
 #include <poll.h>
 #include <sstream>
 #include <stdio.h>
@@ -24,6 +25,7 @@ LysanderMotor::LysanderMotor(ros::NodeHandle &nh, urdf::Model *urdf_model)
 	assert(ros::param::get("motor_controller/port_address", portAddress_));
 	assert(ros::param::get("motor_controller/quad_pulses_per_meter", quadPulsesPerMeter_));
 	assert(ros::param::get("motor_controller/usb_device_name", motorUSBPort_));
+	assert(ros::param::get("motor_controller/wheel_radius", wheelRadius_));
 	ROS_INFO("[LysanderMotor::LysanderMotor] motor_controller/control_loop_hz: %6.3f", controlLoopHz_);
 	ROS_INFO("[LysanderMotor::LysanderMotor] motor_controller/max_command_retries: %d", maxCommandRetries_);
 	ROS_INFO("[LysanderMotor::LysanderMotor] motor_controller/max_seconds_uncommanded_travel: %6.3f", maxSecondsUncommandedTravel_);
@@ -93,6 +95,7 @@ LysanderMotor::LysanderMotor(ros::NodeHandle &nh, urdf::Model *urdf_model)
 
 	openPort();
 	ROS_INFO("[LysanderMotor::LysanderMotor] Initialized");
+	ROS_INFO("[LysanderMotor::LysanderMotor] RoboClaw software version: %s", getVersion().c_str());
 }
 
 
@@ -183,6 +186,96 @@ LysanderMotor::EncodeResult LysanderMotor::getEncoderCommandResult(uint8_t comma
 }
 
 
+uint16_t LysanderMotor::getErrorStatus() {
+	boost::mutex::scoped_lock lock(roboClawLock_);
+	int retry;
+
+	for (retry = 0; retry < maxCommandRetries_; retry++) {
+		try {
+			uint16_t crc = 0;
+			updateCrc(crc, portAddress_);
+			updateCrc(crc, kGETERROR);
+			writeN(false, 2, portAddress_, kGETERROR);
+			uint16_t result = 0;
+			uint8_t datum = readByteWithTimeout();
+			updateCrc(crc, datum);
+			result = datum << 8;
+			datum = readByteWithTimeout();
+			updateCrc(crc, datum);
+			result |= datum;
+
+			uint16_t responseCrc = 0;
+			if (datum != -1) {
+				datum = readByteWithTimeout();
+				if (datum != -1) {
+					responseCrc = datum << 8;
+					datum = readByteWithTimeout();
+					if (datum != -1) {
+						responseCrc |= datum;
+						if (responseCrc == crc) {
+							return result;
+						}
+					}
+				}
+			}
+		} catch (TRoboClawException* e) {
+			ROS_ERROR("[LysanderMotor::getErrorStatus] Exception: %s, retry number: %d", e->what(), retry);
+		} catch (...) {
+		    ROS_ERROR("[LysanderMotor::getErrorStatus] Uncaught exception !!!");
+		}
+	}
+
+	ROS_ERROR("<----- [LysanderMotor::getErrorStatus] RETRY COUNT EXCEEDED");
+	throw new TRoboClawException("[LysanderMotor::getErrorStatus] RETRY COUNT EXCEEDED");
+}
+
+
+std::string LysanderMotor::getErrorString() {
+	uint8_t errorStatus = getErrorStatus();
+	if (errorStatus == 0) return "normal";
+	else {
+		std::stringstream errorMessage;
+		if (errorStatus & 0x80) {
+			errorMessage << "[Logic Battery Low] ";
+		}
+
+		if (errorStatus & 0x40) {
+			errorMessage << "[Logic Battery High] ";
+		}
+
+		if (errorStatus & 0x20) {
+			errorMessage << "[Main Battery Low] ";
+		}
+
+		if (errorStatus & 0x10) {
+			errorMessage << "[Main Battery High] ";
+		}
+
+		if (errorStatus & 0x08) {
+			errorMessage << "[Temperature] ";
+		}
+
+		if (errorStatus & 0x04) {
+			errorMessage << "[E-Stop] ";
+		}
+
+		if (errorStatus & 0x02) {
+			errorMessage << "[M2 OverCurrent] ";
+		}
+
+		if (errorStatus & 0x01) {
+			errorMessage << "[M1 OverCurrent] ";
+		}
+
+		if (errorStatus & 0xFF00) {
+			errorMessage << "[INVALID EXTRA STATUS BITS]";
+		}
+
+		return errorMessage.str();
+	}
+}
+
+
 int32_t LysanderMotor::getM1Encoder() {
 	boost::mutex::scoped_lock lock(roboClawLock_);
 	int retry;
@@ -220,6 +313,60 @@ int32_t LysanderMotor::getM2Encoder() {
 
 	ROS_ERROR("<----- [LysanderMotor::getM2Encoder] RETRY COUNT EXCEEDED");
 	throw new TRoboClawException("[LysanderMotor::getM2Encoder] RETRY COUNT EXCEEDED");
+}
+
+
+std::string LysanderMotor::getVersion() {
+	boost::mutex::scoped_lock lock(roboClawLock_);
+	int retry;
+
+	for (retry = 0; retry < maxCommandRetries_; retry++) {
+		try {
+			uint16_t crc = 0;
+			updateCrc(crc, portAddress_);
+			updateCrc(crc, kGETVERSION);
+			writeN(false, 2, portAddress_, kGETVERSION);
+
+			uint8_t i;
+			uint8_t datum;
+			std::stringstream version;
+
+			for (i = 0; i < 32; i++) {
+				if (datum != -1) {
+					datum = readByteWithTimeout();
+					version << (char) datum;
+					updateCrc(crc, datum);
+					if (datum == 0) {
+						uint16_t responseCrc = 0;
+						if (datum != -1) {
+							datum = readByteWithTimeout();
+							if (datum != -1) {
+								responseCrc = datum << 8;
+								datum = readByteWithTimeout();
+								if (datum != -1) {
+									responseCrc |= datum;
+									if (responseCrc == crc) {
+										return version.str();
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			ROS_ERROR("[LysanderMotor::getVersion] unexpected long string");
+			throw new TRoboClawException("[LysanderMotor::getVersion] unexpected long string");
+		} catch (TRoboClawException* e) {
+			ROS_ERROR("[LysanderMotor::getVersion] Exception: %s, retry number: %d", e->what(), retry);
+		} catch (...) {
+		    ROS_ERROR("[LysanderMotor::getVersion] Uncaught exception !!!");
+		}
+	}
+
+
+	ROS_ERROR("[LysanderMotor::getVersion] RETRY COUNT EXCEEDED");
+	throw new TRoboClawException("[LysanderMotor::getVersion] RETRY COUNT EXCEEDED");
 }
 
 
@@ -294,11 +441,13 @@ void LysanderMotor::read(const ros::Time& time, const ros::Duration& period) {
 		     "LysanderMotor::read joint: %d (%s), jointVelocityCommand_: %6.3f"
 		     ", jointPositionCommand_: %6.3f"
 		     ", jointEffortCommand_: %6.3f"
+		     ", jointPosition_: %6.3f"
 		     , i
 		     , jointNames_[i].c_str()
 		     , jointVelocityCommand_[i]
 		     , jointPositionCommand_[i]
-		     , jointEffortCommand_[i]);
+		     , jointEffortCommand_[i]
+		     , jointPosition_[i]);
 	}
 }
 
@@ -391,6 +540,7 @@ void LysanderMotor::update() {
 	read(ros::Time(now_.tv_sec, now_.tv_nsec), elapsedTime_);
 	controller_manager_->update(ros::Time(now_.tv_sec, now_.tv_nsec), elapsedTime_);
 	write(ros::Time(now_.tv_sec, now_.tv_nsec), elapsedTime_);
+	usleep(1000);
 }
 
 
@@ -407,34 +557,59 @@ void LysanderMotor::updateCrc(uint16_t& crc, uint8_t data) {
 
 void LysanderMotor::write(const ros::Time& time, const ros::Duration& period) {
 	int retry;
-	int32_t m1Speed;
-	int32_t m1MaxDistance;
-	int32_t m2Speed;
-	int32_t m2MaxDistance;
+	int32_t leftMaxDistance;
+	int32_t rightMaxDistance;
 
-	m1Speed = static_cast<int32_t>(round(jointVelocityCommand_[0] * quadPulsesPerMeter_));
-	m2Speed = static_cast<int32_t>(round(jointVelocityCommand_[1] * quadPulsesPerMeter_));
-	m1MaxDistance = fabs(m1Speed * maxSecondsUncommandedTravel_);
-	m2MaxDistance = fabs(m2Speed * maxSecondsUncommandedTravel_);
+	double leftMetersPerSecond = jointVelocityCommand_[0] * wheelRadius_; // radians/sec * meters/radian.
+	double rightMetersPerSecond = jointVelocityCommand_[1] * wheelRadius_; // radians/sec * meters/radian.
+	int32_t leftQuadPulsesPerSecond = leftMetersPerSecond * quadPulsesPerMeter_;
+	int32_t rightQuadPulsesPerSecond = rightMetersPerSecond * quadPulsesPerMeter_;
 
-	for (retry = 0; retry < maxCommandRetries_; retry++) {
-		try {
-			writeN(true
-				   , 19
-				   , portAddress_
-				   , kMIXEDSPEEDDIST
-				   , SetDWORDval(m1Speed)
-				   , SetDWORDval(m1MaxDistance)
-				   , SetDWORDval(m2Speed)
-				   , SetDWORDval(m2MaxDistance)
-				   , 1 /* Cancel any previous command */
-				   );
-			return;
-		} catch (TRoboClawException* e) {
-			ROS_ERROR("[LysanderMotor::write] Exception: %s, retry number %d", e->what(), retry);
-		} catch (...) {
-		    ROS_ERROR("[LysanderMotor::write] Uncaught exception !!!");
+	leftMaxDistance = fabs(leftQuadPulsesPerSecond * maxSecondsUncommandedTravel_);
+	rightMaxDistance = fabs(rightQuadPulsesPerSecond * maxSecondsUncommandedTravel_);
+
+	if ((fabs(jointVelocityCommand_[0]) > 0.01) ||
+		(fabs(jointVelocityCommand_[1]) > 0.01)) {
+		ROS_INFO("[LysanderMotor::write] left_command: %6.3f"
+			     ", leftMetersPerSecond: %7.3f"
+			     ", leftQuadPulsesPerSecond: %d"
+			     ", leftMaxDistance: %d"
+			     ", right_command: %6.3f"
+			     ", rightMetersPerSecond: %7.3f"
+			     ", rightQuadPulsesPerSecond: %d"
+			     ", rightMaxDistance: %d"
+			     , jointVelocityCommand_[0]
+			     , leftMetersPerSecond
+			     , leftQuadPulsesPerSecond
+			     , leftMaxDistance
+			     , jointVelocityCommand_[1]
+			     , rightMetersPerSecond
+			     , rightQuadPulsesPerSecond
+			     , rightMaxDistance);
+
+		for (retry = 0; retry < maxCommandRetries_; retry++) {
+			try {
+				writeN(true
+					   , 19
+					   , portAddress_
+					   , kMIXEDSPEEDDIST
+					   , SetDWORDval(leftQuadPulsesPerSecond)
+					   , SetDWORDval(leftMaxDistance)
+					   , SetDWORDval(rightQuadPulsesPerSecond)
+					   , SetDWORDval(rightMaxDistance)
+					   , 1 /* Cancel any previous command */
+					   );
+				ROS_INFO("[LysanderMotor::write] Error status: %s", getErrorString().c_str());
+				return;
+			} catch (TRoboClawException* e) {
+				ROS_ERROR("[LysanderMotor::write] Exception: %s, retry number %d", e->what(), retry);
+			} catch (...) {
+			    ROS_ERROR("[LysanderMotor::write] Uncaught exception !!!");
+			}
 		}
+	} else {
+		ROS_INFO("[LysanderMotor::write] both commands are near zero");
+		return;
 	}
 
 	ROS_ERROR("[LysanderMotor::write] RETRY COUNT EXCEEDED");

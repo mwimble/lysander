@@ -28,7 +28,11 @@ public:
 
 	virtual void write(const ros::Time& time, const ros::Duration& period);
 
+	// Get RoboClaw error status bits.
 	uint16_t getErrorStatus();
+
+	// Get RoboClaw error status as a string.
+	std::string getErrorString();
 
 	float getLogicBatteryLevel();
 
@@ -67,6 +71,7 @@ public:
 
 	int32_t getM2Speed();
 
+	// Get RoboClaw software versions.
 	std::string getVersion();
 
 	// Stop motion.
@@ -97,7 +102,7 @@ private:
 	    GETM1SPEED = 18,
 	    GETM2SPEED = 19,
 	    RESETENC = 20,
-	    GETVERSION = 21,
+	    kGETVERSION = 21,
 	    GETMBATT = 24,
 	    GETLBATT = 25,
 	    SETMINLB = 26,
@@ -131,7 +136,7 @@ private:
 	    MIXEDDUTYACCEL = 54,
 	    GETM1PID = 55,
 	    GETM2PID = 56,
-	    GETERROR = 90,
+	    kGETERROR = 90,
 	    WRITENVM = 94,
 		GETM1MAXCURRENT = 135};
 
@@ -141,8 +146,9 @@ private:
 	double maxSecondsUncommandedTravel_;	// Abort travel after this number of seconds if a new motion command has not arrived.
 	std::string motorUSBPort_;				// Device name of RoboClaw device.
 	int portAddress_;						// Port number of RoboClaw device under control
-	double quadPulsesPerMeter_;			// Number of quadrature pulses that will be received after 1 meter of travel.
+	double quadPulsesPerMeter_;				// Number of quadrature pulses that will be received after 1 meter of travel.
 	boost::mutex roboClawLock_;				// To control multithread access.
+	double wheelRadius_;					// Wheel radius.
 
 	static const double kBILLION;
 
