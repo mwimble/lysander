@@ -84,8 +84,8 @@ add_dependencies(
 
 target_link_libraries(
   WRDifferentialDrive_node
-  boost_system boost_thread
   ${catkin_LIBRARIES} 
+  boost_system boost_thread
 )
 
 add_executable(motor_controller_node src/motorController.cpp src/motorSkidSteerDrive.cpp)

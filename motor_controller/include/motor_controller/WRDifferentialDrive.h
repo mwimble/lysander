@@ -12,8 +12,7 @@
 #include <urdf/model.h>
 
 class WRDifferentialDrive : public hardware_interface::RobotHW {
- private:
-  private:
+ protected:
 	// Startup and shutdown of the internal node inside a roscpp program
 	ros::NodeHandle nh_;
 
@@ -72,18 +71,7 @@ class WRDifferentialDrive : public hardware_interface::RobotHW {
 	  * \param time The current time
 	  * \param period The time passed since the last call to \ref read
 	  */
-	virtual void read(const ros::Time& time, const ros::Duration& period) {
-	  for (int i = 0; i < jointVelocityCommand_.size(); i++) {
-	    ROS_INFO(
-		     "WRDifferentialDrive::read joint: %d, jointVelocityCommand_: %6.3f"
-		     ", jointPositionCommand_: %6.3f"
-		     ", jointEffortCommand_: %6.3f",
-		     i,
-		     jointVelocityCommand_[i],
-		     jointPositionCommand_[i],
-		     jointEffortCommand_[i]);
-	  }
-	}
+	virtual void read(const ros::Time& time, const ros::Duration& period) = 0;
 
 	void reset();
 
@@ -93,9 +81,9 @@ class WRDifferentialDrive : public hardware_interface::RobotHW {
 	 * \param time The current time
 	 * \param period The time passed since the last call to \ref write
 	 */
-	virtual void write(const ros::Time& time, const ros::Duration& period) {}
+	virtual void write(const ros::Time& time, const ros::Duration& period) = 0;
 
- private:
+ protected:
 	void loadURDF(ros::NodeHandle &nh, std::string param_name);
 
 	/**

@@ -11,36 +11,7 @@ WRDifferentialDrive::WRDifferentialDrive(ros::NodeHandle &nh, urdf::Model *urdf_
     loadURDF(nh, "robot_description");
   } else {
     model_ = urdf_model;
-  }
-  
-  ROS_INFO_STREAM("[WRDifferentialDrive::WRDifferentialDrive] constructor");
-
-  // std::vector< boost::shared_ptr< urdf::Link > > links;
-  // model_->getLinks(links);
-  // std::vector< boost::shared_ptr< urdf::Link > >::iterator it;
-  // ROS_INFO_STREAM("[WRDifferentialDrive::WRDifferentialDrive] found " << links.size() << " links");
-  // for (it = links.begin(); it != links.end(); it++) {
-  // 	int foo = 3;
-  // 	//ROS_INFO_STREAM("[WRDifferentialDrive::WRDifferentialDrive] link name: " << *it.name);
-  // }
-  //
-  // 	for (auto link: links) {
-  // 		auto l = *link;
-  // 		ROS_INFO_STREAM("[WRDifferentialDrive::WRDifferentialDrive] link name: " << l.name);
-  // 		for (auto joint: l.child_joints) {
-  // 			auto j = *joint;
-  // 			ROS_INFO_STREAM("[WRDifferentialDrive::WRDifferentialDrive] ... joint name: " << j.name);
-  // 		}
-  // 	}
-  
-  std::string jointNamesParameter = "/" + model_->getName() + "/joint_names";
-  if (!nh.getParam(jointNamesParameter, jointNames_)) {
-    ROS_ERROR_STREAM("[WRDifferentialDrive::WRDifferentialDrive] Missing " << jointNamesParameter << " parameter");
-  }
-  
-  for (auto jointName: jointNames_) {
-    ROS_INFO_STREAM("[WRDifferentialDrive::WRDifferentialDrive] joint name: " << jointName);
-  }
+  }  
 }
 
 WRDifferentialDrive::~WRDifferentialDrive() {
@@ -48,60 +19,6 @@ WRDifferentialDrive::~WRDifferentialDrive() {
 
 
 void WRDifferentialDrive::init() {
-  ROS_INFO("[WRDifferentialDrive::init]");
-  // Status
-  jointPosition_.resize(jointNames_.size(), 0.0);
-  jointVelocity_.resize(jointNames_.size(), 0.0);
-  jointEffort_.resize(jointNames_.size(), 0.0);
-  
-  // Command
-  jointPositionCommand_.resize(jointNames_.size(), 0.0);
-  jointVelocityCommand_.resize(jointNames_.size(), 0.0);
-  jointEffortCommand_.resize(jointNames_.size(), 0.0);
-  
-  // Limits
-  jointPositionLowerLimits_.resize(jointNames_.size(), 0.0);
-  jointPositionUpperLimits_.resize(jointNames_.size(), 0.0);
-  jointVelocityLimits_.resize(jointNames_.size(), 0.0);
-  jointEffortLimits_.resize(jointNames_.size(), 0.0);
-  
-  // Initialize interfaces for each joint
-  for (std::size_t jointId = 0; jointId < jointNames_.size(); ++jointId) {
-    ROS_DEBUG_STREAM("[WRDifferentialDrive::init] Loading joint name: " << jointNames_[jointId]);
-    
-    // Create joint state interface
-    jointStateInterface_.registerHandle
-      (hardware_interface::JointStateHandle(jointNames_[jointId],
-					    &jointPosition_[jointId],
-					    &jointVelocity_[jointId],
-					    &jointEffort_[jointId]));
-    
-    // Add command interfaces to joints
-    // TODO: decide based on transmissions?
-    hardware_interface::JointHandle jointHandlePosition =
-      hardware_interface::JointHandle(jointStateInterface_.getHandle(jointNames_[jointId]),
-				      &jointPositionCommand_[jointId]);
-    positionJointInterface_.registerHandle(jointHandlePosition);
-    
-    hardware_interface::JointHandle jointHandleVelocity =
-      hardware_interface::JointHandle(jointStateInterface_.getHandle(jointNames_[jointId]),
-				      &jointVelocityCommand_[jointId]);
-    velocityJointInterface_.registerHandle(jointHandleVelocity);
-    
-    hardware_interface::JointHandle jointHandleEffort =
-      hardware_interface::JointHandle(jointStateInterface_.getHandle(jointNames_[jointId]),
-				      &jointEffortCommand_[jointId]);
-    effortJointInterface_.registerHandle(jointHandleEffort);
-    
-    // Load the joint limits
-    registerJointLimits(jointHandlePosition, jointHandleVelocity, jointHandleEffort, jointId);
-  }
-
-  registerInterface(&jointStateInterface_);     // From RobotHW base class.
-  registerInterface(&positionJointInterface_);  // From RobotHW base class.
-  registerInterface(&velocityJointInterface_);  // From RobotHW base class.
-  registerInterface(&effortJointInterface_);    // From RobotHW base class.
-  ROS_DEBUG_STREAM("[WRDifferentialDrive::init] Initialized");
 }
 
 

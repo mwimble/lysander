@@ -18,24 +18,6 @@
     <!-- Load joint controller configurations from YAML file to parameter server -->
     <rosparam file="$(find motor_controller)/config/controller.yaml" command="load" ns="/" />
 
-    <include file="$(find gazebo_ros)/launch/empty_world.launch">
-      <arg name="world_name" value="$(find motor_controller)/worlds/lysander.world"/>
-      <arg name="debug" value="$(arg gazebo_debug)" />
-      <arg name="gui" value="$(arg gui)" />
-      <arg name="paused" value="$(arg paused)"/>
-      <arg name="use_sim_time" value="$(arg use_sim_time)"/>
-      <arg name="headless" value="$(arg headless)"/>
-    </include>
-    
-    <node
-      args="-gazebo_namespace /lysander/gazebo -urdf -model lysander -param /lysander/robot_description"
-    	name="urdf_spawner"
-      output="screen"
-      pkg="gazebo_ros"
-      respawn="false"
-      type="spawn_model"
-      />
-    
     <!-- load the controllers -->
     <node 
     	name="controller_spawner" 

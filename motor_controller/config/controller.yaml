@@ -1,29 +1,37 @@
-gazebo_ros_control:
-  pid_gains:
-    base_to_lwheel: {p: 100.0, i: 0.01, d: 10.0}
-    base_to_rwheel: {p: 100.0, i: 0.01, d: 10.0}
+# gazebo_ros_control:
+#   pid_gains:
+#     front_left_wheel: {p: 100.0, i: 0.01, d: 10.0}
+#     front_right_wheel: {p: 100.0, i: 0.01, d: 10.0}
 
 lysander:
+  motor_controller:
+    control_loop_hz: 5.0
+    max_command_retries: 4
+    max_seconds_uncommanded_travel: 0.5
+    port_address: 0x80
+    quad_pulses_per_meter: 5965.29
+    usb_device_name: /dev/roboclaw
+
   joint_state_controller:
     type: joint_state_controller/JointStateController
     publish_rate: 50
 
-  base_to_lwheel_velocity_controller:
-    type: effort_controllers/JointVelocityController  # From URDF <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
-    joint: base_to_lwheel                             # From URDF <joint name="base_to_lwheel" type="continuous">
-    pid: {p: 8762.98571, i: 1535.49646, d: 0.0}       # From IonMotion setup program.
+  # base_to_lwheel_velocity_controller:
+  #   type: effort_controllers/JointVelocityController  # From URDF <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+  #   joint: base_to_lwheel_joint                       # From URDF <joint name="base_to_lwheel_joint" type="continuous">
+  #   pid: {p: 8762.98571, i: 1535.49646, d: 0.0}       # From IonMotion setup program.
 
-  base_to_rwheel_velocity_controller:
-    type: effort_controllers/JointVelocityController  # From URDF <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
-    joint: base_to_rwheel                             # From URDF <joint name="base_to_rwheel" type="continuous">
-    pid: {p: 9542.41265, i: 1773.65086, d: 0.0}       # From IonMotion setup program.
+  # base_to_rwheel_velocity_controller:
+  #   type: effort_controllers/JointVelocityController  # From URDF <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+  #   joint: base_to_rwheel_joint                       # From URDF <joint name="base_to_rwheel_joint" type="continuous">
+  #   pid: {p: 9542.41265, i: 1773.65086, d: 0.0}       # From IonMotion setup program.
 
-  joint_names: [base_to_lwheel, base_to_rwheel]
+  # joint_names: [base_to_lwheel_joint, base_to_rwheel_joint]
 
   diff_drive_controller:
     type        : "diff_drive_controller/DiffDriveController"
-    left_wheel  : ['base_to_lwheel']
-    right_wheel : ['base_to_rwheel']
+    left_wheel  : 'front_left_wheel'
+    right_wheel : 'front_right_wheel'
     publish_rate: 50.0
     pose_covariance_diagonal : [0.001, 0.001, 1000000.0, 1000000.0, 1000000.0, 1000.0]
     twist_covariance_diagonal: [0.001, 0.001, 1000000.0, 1000000.0, 1000000.0, 1000.0]
@@ -42,7 +50,7 @@ lysander:
     cmd_vel_timeout: 0.25
 
     # Base frame_id
-    base_frame_id: base_footprint
+    base_frame_id: base_link
     odom_frame_id: odom
     enable_odom_tf: true
 
