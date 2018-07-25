@@ -59,7 +59,7 @@ MotorSkidSteerDrive::MotorSkidSteerDrive() :
     robot_pose_py_(0.0),
     theta_(0.0)
     {
-	DEBUG = false;
+	DEBUG = true;
     ROS_INFO_COND(DEBUG, "[MotorSkidSteerDrive::MotorSkidSteerDrive] constructor");
 	if (!ros::isInitialized()) {
 		ROS_FATAL_STREAM("[MotorSkidSteerDrive::MotorSkidSteerDrive] A ROS Node for MotorSkidSteerDrive has not been initialized.");

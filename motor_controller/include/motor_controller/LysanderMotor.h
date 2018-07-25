@@ -107,8 +107,8 @@ private:
 	    GETLBATT = 25,
 	    SETMINLB = 26,
 	    SETMAXLB = 27,
-	    SETM1PID = 28,
-	    SETM2PID = 29,
+	    kSETM1PID = 28,
+	    kSETM2PID = 29,
 	    GETM1ISPEED = 30,
 	    GETM2ISPEED = 31,
 	    M1DUTY = 32,
@@ -147,6 +147,7 @@ private:
 	std::string motorUSBPort_;				// Device name of RoboClaw device.
 	int portAddress_;						// Port number of RoboClaw device under control
 	double quadPulsesPerMeter_;				// Number of quadrature pulses that will be received after 1 meter of travel.
+	double quadPulsesPerRevolution_;		// Number of quadrature pulses per revolution.
 	boost::mutex roboClawLock_;				// To control multithread access.
 	double wheelRadius_;					// Wheel radius.
 
@@ -183,6 +184,12 @@ private:
 
 	// Perform error recovery to re-open a failed device port.
 	void restartPort();
+
+	// Set the PID for motor M1.
+	void setM1PID(float p, float i, float d, uint32_t qpps);
+
+	// Set the PID for motor M1.
+	void setM2PID(float p, float i, float d, uint32_t qpps);
 
 	// Update the running CRC result.
 	void updateCrc(uint16_t& crc, uint8_t data);

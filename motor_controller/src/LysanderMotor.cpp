@@ -11,6 +11,10 @@
 #include <time.h>
 #include <unistd.h>
 
+//TODO 
+// Further initialization?
+// No command in n-sec should stop motor.
+
 #define SetDWORDval(arg) (uint8_t)(arg>>24),(uint8_t)(arg>>16),(uint8_t)(arg>>8),(uint8_t)arg
 
 LysanderMotor::LysanderMotor(ros::NodeHandle &nh, urdf::Model *urdf_model)
@@ -24,13 +28,15 @@ LysanderMotor::LysanderMotor(ros::NodeHandle &nh, urdf::Model *urdf_model)
 	assert(ros::param::get("motor_controller/max_seconds_uncommanded_travel", maxSecondsUncommandedTravel_));
 	assert(ros::param::get("motor_controller/port_address", portAddress_));
 	assert(ros::param::get("motor_controller/quad_pulses_per_meter", quadPulsesPerMeter_));
+	assert(ros::param::get("motor_controller/quad_pulses_per_revolution", quadPulsesPerRevolution_));
 	assert(ros::param::get("motor_controller/usb_device_name", motorUSBPort_));
 	assert(ros::param::get("motor_controller/wheel_radius", wheelRadius_));
 	ROS_INFO("[LysanderMotor::LysanderMotor] motor_controller/control_loop_hz: %6.3f", controlLoopHz_);
 	ROS_INFO("[LysanderMotor::LysanderMotor] motor_controller/max_command_retries: %d", maxCommandRetries_);
 	ROS_INFO("[LysanderMotor::LysanderMotor] motor_controller/max_seconds_uncommanded_travel: %6.3f", maxSecondsUncommandedTravel_);
-	ROS_INFO_STREAM("[LysanderMotor::LysanderMotor] motor_controller/port_address: " << std::hex << portAddress_);
+	ROS_INFO_STREAM("[LysanderMotor::LysanderMotor] motor_controller/port_address: 0x" << std::hex << portAddress_);
 	ROS_INFO("[LysanderMotor::LysanderMotor] motor_controller/quad_pulses_per_meter: %8.3f", quadPulsesPerMeter_);
+	ROS_INFO("[LysanderMotor::LysanderMotor] motor_controller/quad_pulses_per_revolution: %8.3f", quadPulsesPerRevolution_);
 	ROS_INFO("[LysanderMotor::LysanderMotor] motor_controller/usb_device_name: %s", motorUSBPort_.c_str());
 
     jointNames_.push_back("front_left_wheel");
@@ -94,6 +100,17 @@ LysanderMotor::LysanderMotor(ros::NodeHandle &nh, urdf::Model *urdf_model)
 	expectedControlLoopDuration_ = ros::Duration(1 / controlLoopHz_);
 
 	openPort();
+
+	float M1_P =  8762.98571;
+	float M2_P = 9542.41265;
+	float M1_I = 1535.49646;
+	float M2_I = 1773.65086;
+	float M1_QPPS = 3562;
+	float M2_QPPS = 3340;
+
+	setM1PID(M1_P, M1_I, 0, M1_QPPS);
+	setM2PID(M2_P, M2_I, 0, M2_QPPS);
+
 	ROS_INFO("[LysanderMotor::LysanderMotor] Initialized");
 	ROS_INFO("[LysanderMotor::LysanderMotor] RoboClaw software version: %s", getVersion().c_str());
 }
@@ -430,11 +447,16 @@ void LysanderMotor::openPort() {
 void LysanderMotor::read(const ros::Time& time, const ros::Duration& period) {
 	int32_t m1Encoder = getM1Encoder();
 	int32_t m2Encoder = getM2Encoder();
-	double m1Distance = m1Encoder / quadPulsesPerMeter_;
-	double m2Distance = m2Encoder / quadPulsesPerMeter_;
+	// double m1Distance = m1Encoder / quadPulsesPerMeter_;
+	// double m2Distance = m2Encoder / quadPulsesPerMeter_;
 	
-	jointPosition_[0] = m1Distance;
-	jointPosition_[1] = m2Distance;
+	// jointPosition_[0] = m1Distance;
+	// jointPosition_[1] = m2Distance;
+	double m1Radians = (m1Encoder / quadPulsesPerRevolution_) * 2.0 * M_PI;
+	double m2Radians = (m2Encoder / quadPulsesPerRevolution_) * 2.0 * M_PI;
+	
+	jointPosition_[0] = m1Radians;
+	jointPosition_[1] = m2Radians;
 
 	for (int i = 0; i < jointVelocityCommand_.size(); i++) {
 		ROS_INFO(
@@ -490,6 +512,61 @@ void LysanderMotor::restartPort() {
     close(clawPort_);
     usleep(200000);
     openPort();
+}
+
+
+void LysanderMotor::setM1PID(float p, float i, float d, uint32_t qpps) {
+	boost::mutex::scoped_lock lock(roboClawLock_);
+	int retry;
+
+	for (retry = 0; retry < maxCommandRetries_; retry++) {
+		try {
+			uint32_t kp = int(p * 65536.0); // 14834322.6368 = E25A93
+			uint32_t ki = int(i * 65536.0);
+			uint32_t kd = int(d * 65536.0);
+			writeN(true, 18, portAddress_, kSETM1PID, 
+				   SetDWORDval(kd),
+				   SetDWORDval(kp),
+				   SetDWORDval(ki),
+				   SetDWORDval(qpps));
+			return;
+		} catch (TRoboClawException* e) {
+			ROS_ERROR("[LysanderMotor::setM1PID] Exception: %s, retry number: %d", e->what(), retry);
+		} catch (...) {
+		    ROS_ERROR("[LysanderMotor::setM1PID] Uncaught exception !!!");
+		}
+	}
+
+	ROS_ERROR("<----- [LysanderMotor::setM1PID] RETRY COUNT EXCEEDED");
+	throw new TRoboClawException("[LysanderMotor::setM1PID] RETRY COUNT EXCEEDED");
+}
+
+
+void LysanderMotor::setM2PID(float p, float i, float d, uint32_t qpps) {
+	boost::mutex::scoped_lock lock(roboClawLock_);
+	int retry;
+
+	for (retry = 0; retry < maxCommandRetries_; retry++) {
+		try {
+			uint32_t kp = int(p * 65536.0); // 14834322.6368 = E25A93
+			uint32_t ki = int(i * 65536.0);
+			uint32_t kd = int(d * 65536.0);
+			writeN(true, 18, portAddress_, kSETM2PID, 
+				   SetDWORDval(kd),
+				   SetDWORDval(kp),
+				   SetDWORDval(ki),
+				   SetDWORDval(qpps));
+        	//ROS_INFO_COND(DEBUG, "<----- [LysanderMotor::setM2PID]");
+			return;
+		} catch (TRoboClawException* e) {
+			ROS_ERROR("[LysanderMotor::setM2PID] Exception: %s, retry number: %d",  e->what(), retry);
+		} catch (...) {
+		    ROS_ERROR("[LysanderMotor::setM2PID] Uncaught exception !!!");
+		}
+	}
+
+	ROS_ERROR("<----- [LysanderMotor::setM2PID] RETRY COUNT EXCEEDED");
+	throw new TRoboClawException("[LysanderMotor::setM2PID] RETRY COUNT EXCEEDED");
 }
 
 

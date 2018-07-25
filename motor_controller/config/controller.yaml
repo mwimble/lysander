@@ -10,6 +10,7 @@ lysander:
     max_seconds_uncommanded_travel: 0.5
     port_address: 128
     quad_pulses_per_meter: 5965.29
+    quad_pulses_per_revolution: 2248.86
     usb_device_name: /dev/roboclaw
     wheel_radius: 0.06
 
