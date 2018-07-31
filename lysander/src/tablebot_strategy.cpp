@@ -92,7 +92,7 @@ bool TablebotStrategy::closeToDesiredPose(SimplePose desiredPose) {
 	static const float closeDeltaX = 0.0254 / 2.0;
 	static const float closeDeltaY = 0.0254 / 2.0;
 	float deltaX = fabs(desiredPose.x_ - lastOdom_.pose.pose.position.x);
-	float deltaY = fabs(desiredPose.y_ - lastOdom_.pose.pose.position.y);
+	float deltaY = 0;//#####fabs(desiredPose.y_ - lastOdom_.pose.pose.position.y);
 	return (deltaX < closeDeltaX) && (deltaY < closeDeltaY);
 }
 

@@ -1,6 +1,7 @@
 <launch>
   <group ns="/lysander">
     <arg name="do_debug" default="false" />
+    <arg name="do_lidar" default="true" />
     <arg name="do_motor_controller" default="true" />
     <arg name="gazebo_debug" default="false" />
     <arg name="gui" default="true" />
@@ -39,7 +40,7 @@
     
     <!-- Combine joint values -->
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
-      <param name="publish_frequency" type="double" value="30.0" />>
+      <param name="publish_frequency" type="double" value="30.0" />
     </node>
     
     <!-- Start the motor controller -->
@@ -49,6 +50,28 @@
       pkg="motor_controller" 
       type="WRDifferentialDrive_node" 
       launch-prefix="$(arg prefix)" />
+
+    <node 
+      if="$(arg do_motor_controller)"
+      name="caster_wheel_transform"
+      pkg="tf"
+      type="static_transform_publisher"
+      args="-0.13 0 0.06 0 0 0 base_link caster_wheel_link 100" />
+
+    <node 
+      if="$(arg do_lidar)"
+      name="neato_lidar" 
+      pkg="xv_11_laser_driver" 
+      type="neato_laser_publisher" >
+      <param name="port" value="/dev/neato_lidar" />
+    </node>
+
+    <node
+      if="$(arg do_lidar)"
+      name="lidar_inverter_transform" 
+      pkg="tf" 
+      type="static_transform_publisher" 
+      args="0.05 0 0.25 3.14159 0 0 base_link neato_laser 100" />
     
   </group>
 </launch>

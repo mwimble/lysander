@@ -15,13 +15,17 @@
 	</node>
 
 	<!-- Bring up motor controller -->
-	<node if="$(arg do_motor_controller)" name="motor_controller_node" pkg="motor_controller"  type="motor_controller_node" output="screen" >
+
+	<include if="$(arg do_motor_controller)" file="$(find motor_controller)/launch/lysander.launch" />
+	<!--node if="$(arg do_motor_controller)" name="motor_controller_node" pkg="motor_controller"  type="motor_controller_node" output="screen" >
 		<remap from="odom" to="motor_odom" />
         <remap from="/cmd_vel_mux/input/teleop" to="/cmd_vel" />
 		<rosparam command="load" file="$(find motor_controller)/cfg/motor.yaml"/>
 		<param name="do_odom_tf" value="$(arg do_odom_tf)" />
-	</node>
+	</node-->
 
 	<node pkg="lysander" type="tablebot_node" name="tablebot_node" output="screen" launch-prefix="$(arg launchPrefix)" >
+		<remap from="motor_odom" to="/lysander/diff_drive_controller/odom" />
+		<remap from="cmd_vel" to="/lysander/diff_drive_controller/cmd_vel" />
 	</node>
 </launch>
