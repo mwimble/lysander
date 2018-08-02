@@ -1,7 +1,10 @@
 <launch>
   <group ns="/lysander">
+    <arg name="do_amcl" default="true" />
+    <arg name="do_arduino" default="true" />
     <arg name="do_debug" default="false" />
     <arg name="do_lidar" default="true" />
+    <arg name="do_map_server" default="true" />
     <arg name="do_motor_controller" default="true" />
     <arg name="gazebo_debug" default="false" />
     <arg name="gui" default="true" />
@@ -11,6 +14,8 @@
     <arg unless="$(arg do_debug)" name="prefix" value="" />
     <arg     if="$(arg do_debug)" name="prefix" value="xterm -e gdb --args" />
     
+    <arg name="map_file" default="$(find lysander)/maps/Snowberry.yaml"/>
+
     
     <param 
       name="/lysander/robot_description" 
@@ -42,7 +47,13 @@
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
       <param name="publish_frequency" type="double" value="30.0" />
     </node>
-    
+
+    <!-- Start the communicatoin with the teensy3.6 -->    
+    <node if="$(arg do_arduino)" pkg="rosserial_python" type="serial_node.py" name="serial_node" output="screen" >
+      <param name="port" value="/dev/teensy3_6"/>
+      <param name="baud" value="115200"/>
+    </node>
+
     <!-- Start the motor controller -->
     <node 
       if="$(arg do_motor_controller)"
@@ -51,6 +62,7 @@
       type="WRDifferentialDrive_node" 
       launch-prefix="$(arg prefix)" />
 
+    <!-- Provide the missing transform to the caster wheel -->
     <node 
       if="$(arg do_motor_controller)"
       name="caster_wheel_transform"
@@ -58,20 +70,77 @@
       type="static_transform_publisher"
       args="-0.13 0 0.06 0 0 0 base_link caster_wheel_link 100" />
 
+    <!-- Start the main LIDAR -->
     <node 
       if="$(arg do_lidar)"
       name="neato_lidar" 
       pkg="xv_11_laser_driver" 
       type="neato_laser_publisher" >
       <param name="port" value="/dev/neato_lidar" />
+      <param name="frame_id" value="scan" />
     </node>
 
+    <!--node
+      if="$(arg do_lidar)"
+      name="lidar_inverter_transform" 
+      pkg="tf" 
+      type="static_transform_publisher" 
+      args="0.05 0 0.25 3.14159 0 0 base_link scan 100" /-->
     <node
       if="$(arg do_lidar)"
       name="lidar_inverter_transform" 
       pkg="tf" 
       type="static_transform_publisher" 
-      args="0.05 0 0.25 3.14159 0 0 base_link neato_laser 100" />
+      args="0.0 0 0.0 3.14159 0 0 neato scan 100" />
     
+    <!-- Bring up map_server -->
+    <node if="$(arg do_map_server)" name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" />
+
+    <node 
+      if="$(arg do_amcl)"
+      pkg="amcl" 
+      type="amcl" 
+      name="amcl" 
+      output="screen" >
+      <!-- Publish scans from best pose at a max of 10 Hz -->
+      <remap from="scan" to="/lysander/scan" />
+      <remap from="map" to="/lysander/map" />
+
+      <param name="base_frame_id" value="base_footprint" />
+      <param name="global_frame_id" value="map" />
+      <param name="odom_frame_id" value="odom" />
+      <param name="use_map_topic" value="true" />
+
+      <param name="odom_model_type" value="diff" />
+      <param name="transform_tolerance" value="0.5" />
+      <param name="gui_publish_rate" value="10.0" />
+      <param name="laser_max_beams" value="360" />
+      <param name="min_particles" value="500" />
+      <param name="max_particles" value="1000" />
+      <param name="kld_err" value="0.01" />
+      <param name="kld_z" value="0.99" />
+      <param name="odom_alpha1" value="0.8" />
+      <param name="odom_alpha2" value="0.8" />
+      <!-- translation std dev, m -->
+      <param name="odom_alpha3" value="0.2" />
+      <param name="odom_alpha4" value="0.2" />
+      <param name="laser_z_hit" value="0.95" />
+      <param name="laser_z_short" value="0.05" />
+      <param name="laser_z_max" value="0.05" />
+      <param name="laser_z_rand" value="0.05" />
+      <param name="laser_sigma_hit" value="0.2" />
+      <param name="laser_lambda_short" value="0.1" />
+      <param name="laser_min_range" value="0.08" />
+      <param name="laser_max_range" value="5.0" />
+      <param name="laser_model_type" value="likelihood_field" /> 
+      <!-- <param name="laser_model_type" value="beam"/> --> 
+      <param name="laser_likelihood_max_dist" value="5.0" />
+      <param name="update_min_d" value="0.1" />
+      <param name="update_min_a" value="0.1" />
+      <param name="resample_interval" value="2" />
+      <param name="recovery_alpha_slow" value="0.001" />
+      <param name="recovery_alpha_fast" value="0.1" />
+    </node>
+
   </group>
 </launch>

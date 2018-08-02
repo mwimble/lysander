@@ -7,7 +7,7 @@ int main(int argc, char** argv) {
 	ros::NodeHandle nh;
 
 	ROS_INFO("[WRDifferentialDrive_node] starting spinner");
-	ros::AsyncSpinner spinner(2);
+	ros::AsyncSpinner spinner(50);
 	spinner.start();
 
   	boost::shared_ptr<LysanderMotor> hw;

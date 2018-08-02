@@ -39,6 +39,9 @@ LysanderMotor::LysanderMotor(ros::NodeHandle &nh, urdf::Model *urdf_model)
 	ROS_INFO("[LysanderMotor::LysanderMotor] motor_controller/quad_pulses_per_revolution: %8.3f", quadPulsesPerRevolution_);
 	ROS_INFO("[LysanderMotor::LysanderMotor] motor_controller/usb_device_name: %s", motorUSBPort_.c_str());
 
+	now_ = ros::Time::now();
+	lastTime_ = now_;
+
     jointNames_.push_back("front_left_wheel");
     jointNames_.push_back("front_right_wheel");
 
@@ -96,7 +99,7 @@ LysanderMotor::LysanderMotor(ros::NodeHandle &nh, urdf::Model *urdf_model)
 	registerInterface(&effortJointInterface_);    // From RobotHW base class.
 
 	controller_manager_.reset(new controller_manager::ControllerManager(this, nh_));
-	controlLoopHz_ = 5.0; //#####
+	controlLoopHz_ = 50.0; //#####
 	expectedControlLoopDuration_ = ros::Duration(1 / controlLoopHz_);
 
 	openPort();
@@ -459,6 +462,7 @@ void LysanderMotor::read(const ros::Time& time, const ros::Duration& period) {
 	jointPosition_[1] = m2Radians;
 
 	for (int i = 0; i < jointVelocityCommand_.size(); i++) {
+		/*
 		ROS_INFO(
 		     "LysanderMotor::read joint: %d (%s), jointVelocityCommand_: %6.3f"
 		     ", jointPositionCommand_: %6.3f"
@@ -470,6 +474,7 @@ void LysanderMotor::read(const ros::Time& time, const ros::Duration& period) {
 		     , jointPositionCommand_[i]
 		     , jointEffortCommand_[i]
 		     , jointPosition_[i]);
+		     */
 	}
 }
 
@@ -572,7 +577,7 @@ void LysanderMotor::setM2PID(float p, float i, float d, uint32_t qpps) {
 
 void LysanderMotor::stop() {
 	boost::mutex::scoped_lock lock(roboClawLock_);
-	ROS_INFO("[LysanderMotor::stop]");
+	//ROS_INFO("[LysanderMotor::stop]");
 	int retry;
 
 	for (retry = 0; retry < maxCommandRetries_; retry++) {
@@ -598,10 +603,10 @@ void LysanderMotor::stop() {
 
 
 void LysanderMotor::update() {
-	clock_gettime(CLOCK_MONOTONIC, &now_);
-	elapsedTime_ = ros::Duration(now_.tv_sec - 
-      							 lastTime_.tv_sec +
-      							 (now_.tv_nsec - lastTime_.tv_nsec) / kBILLION);
+	now_ = ros::Time::now();
+	elapsedTime_ = ros::Duration(now_.sec - 
+      							 lastTime_.sec +
+      							 (now_.nsec - lastTime_.nsec) / kBILLION);
 	lastTime_ = now_;
 	const double controlLoopCycleDurationDeviation = (elapsedTime_ - expectedControlLoopDuration_).toSec();
 
@@ -614,10 +619,9 @@ void LysanderMotor::update() {
 						<< controlLoopMaxAllowedDurationDeviation_);
 	}
 
-	read(ros::Time(now_.tv_sec, now_.tv_nsec), elapsedTime_);
-	controller_manager_->update(ros::Time(now_.tv_sec, now_.tv_nsec), elapsedTime_);
-	write(ros::Time(now_.tv_sec, now_.tv_nsec), elapsedTime_);
-	usleep(1000);
+	read(ros::Time(now_.sec, now_.nsec), elapsedTime_);
+	controller_manager_->update(ros::Time(now_.sec, now_.nsec), elapsedTime_);
+	write(ros::Time(now_.sec, now_.nsec), elapsedTime_);
 }
 
 
@@ -647,6 +651,7 @@ void LysanderMotor::write(const ros::Time& time, const ros::Duration& period) {
 
 	if ((fabs(jointVelocityCommand_[0]) > 0.01) ||
 		(fabs(jointVelocityCommand_[1]) > 0.01)) {
+		/*
 		ROS_INFO("[LysanderMotor::write] left_command: %6.3f"
 			     ", leftMetersPerSecond: %7.3f"
 			     ", leftQuadPulsesPerSecond: %d"
@@ -663,6 +668,7 @@ void LysanderMotor::write(const ros::Time& time, const ros::Duration& period) {
 			     , rightMetersPerSecond
 			     , rightQuadPulsesPerSecond
 			     , rightMaxDistance);
+			     */
 
 		for (retry = 0; retry < maxCommandRetries_; retry++) {
 			try {
@@ -676,7 +682,7 @@ void LysanderMotor::write(const ros::Time& time, const ros::Duration& period) {
 					   , SetDWORDval(rightMaxDistance)
 					   , 1 /* Cancel any previous command */
 					   );
-				ROS_INFO("[LysanderMotor::write] Error status: %s", getErrorString().c_str());
+				//ROS_INFO("[LysanderMotor::write] Error status: %s", getErrorString().c_str());
 				return;
 			} catch (TRoboClawException* e) {
 				ROS_ERROR("[LysanderMotor::write] Exception: %s, retry number %d", e->what(), retry);
@@ -685,7 +691,7 @@ void LysanderMotor::write(const ros::Time& time, const ros::Duration& period) {
 			}
 		}
 	} else {
-		ROS_INFO("[LysanderMotor::write] both commands are near zero");
+		//ROS_INFO("[LysanderMotor::write] both commands are near zero");
 		return;
 	}
 

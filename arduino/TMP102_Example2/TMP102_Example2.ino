@@ -28,8 +28,9 @@ void setup() {
 }
 
 void loop() {
-  leftMotor.setLowTempF(25);
+  rightMotor.setLowTempF(25);
   Serial.print("LowF left: ");
+  
   Serial.print(leftMotor.readLowTempF());
   Serial.print(", LowF right: ");
   Serial.print(rightMotor.readLowTempF());

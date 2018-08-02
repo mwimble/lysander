@@ -160,9 +160,9 @@ private:
 	// Time.
 	ros::Duration elapsedTime_;
 	ros::Duration expectedControlLoopDuration_;
-	struct timespec lastTime_;
+	ros::Time lastTime_;
 	double controlLoopMaxAllowedDurationDeviation_;
-	struct timespec now_;
+	ros::Time now_;
 
 
 	/** \brief ROS Controller Manager and Runner
