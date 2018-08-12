@@ -5,7 +5,7 @@
 
 lysander:
   motor_controller:
-    control_loop_hz: 5.0
+    control_loop_hz: 50.0
     max_command_retries: 4
     max_seconds_uncommanded_travel: 0.5
     port_address: 128
@@ -41,7 +41,7 @@ lysander:
     # Wheel separation and diameter. These are both optional.
     # diff_drive_controller will attempt to read either one or both from the
     # URDF if not specified as a parameter
-    wheel_separation : 0.285 ##### Check URDF #####
+    wheel_separation : 0.305  Check URDF #####
     #wheel_radius : 0.0762
 
     # Wheel separation and radius multipliers

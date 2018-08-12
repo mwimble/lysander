@@ -99,7 +99,6 @@ LysanderMotor::LysanderMotor(ros::NodeHandle &nh, urdf::Model *urdf_model)
 	registerInterface(&effortJointInterface_);    // From RobotHW base class.
 
 	controller_manager_.reset(new controller_manager::ControllerManager(this, nh_));
-	controlLoopHz_ = 50.0; //#####
 	expectedControlLoopDuration_ = ros::Duration(1 / controlLoopHz_);
 
 	openPort();

@@ -1,37 +1,42 @@
 local_costmap: 
-  robot_radius: 0.23
+  # robot_radius: 0.23
 
-  always_send_full_costmap: false
-  footprint_padding: 0.01
-  global_frame: /odom
-  height: 3.0
-  publish_frequency: 1.0
+  # always_send_full_costmap: false
+  # footprint_padding: 0.01
+  global_frame: 'odom'
+  height: 6.0
+  publish_frequency: 2.0
   resolution: 0.05
-  robot_base_frame: /base_footprint
-  robot_radius: 0.0
+  robot_base_frame: 'base_link'
   rolling_window: true
   static_map: false
-  transform_tolerance: 2.0 
-  update_frequency: 1.0
-  width: 3.0
+  # transform_tolerance: 2.0 
+  update_frequency: 5.0
+  width: 6.0
 
   plugins:
-    - { name: obstacle_layer, type: 'costmap_2d::ObstacleLayer' }
-    - { name: inflation_layer, type: 'costmap_2d::InflationLayer' }
+    - { name: 'obstacle_layer', type: 'costmap_2d::ObstacleLayer' }
+    - { name: 'inflation_layer', type: 'costmap_2d::InflationLayer' }
 
   inflation_layer:
-    enabled: true
-    inflation_radius: 0.23
-    cost_scaling_factor: 10.0
+    enabled: true               # true/false
+    cost_scaling_factor: 10.0   # 0.0 .. 100
+    inflation_radius: 0.25      # 0.0 .. 50.0
+    #inflate_unknown: false
 
   obstacle_layer:
-    combination_method: 1
-    enabled: true
-    footprint_clearing_enabled: true
-    inf_is_valid: true
-    laser_scan_sensor: { clearing: true, data_type: LaserScan, marking: true, sensor_frame: '', topic: scan }
-    max_obstacle_height: 2.0
-    observation_sources: laser_scan_sensor
-    obstacle_range: 5.0
-    raytrace_range: 6.0
-
+    #clearing: false
+    combination_method: 1                 # 0 - overwrite, 1 - Maximum
+    #data_type: "PointCloud"
+    enabled: true                         # true/false
+    footprint_clearing_enabled: false     # true/false
+    #laser_scan_sensor: { clearing: true, data_type: LaserScan, expected_update_rate: 2.0, marking: true, sensor_frame: 'scan', topic: '/lysander/scan' }
+    #marking: true
+    #max_obstacle_height: 2.0              # 0.0 .. 50
+    #min_obstacle_height: 0.0
+    #observation_persistence: 0.0
+    #observation_sources: laser_scan_sensor
+    #obstacle_range: 5.0
+    #raytrace_range: 6.0
+    #sensor_frame: ""
+    #topic

@@ -1,5 +1,5 @@
 resolution: 0.014788221343874
-origin: [-10.2817, -10.2817, 0.0]
+origin: [-11.73, 1.84, -1.570796326794897]
 occupied_thresh: 0.65
 free_thresh: 0.196
 negate: 0

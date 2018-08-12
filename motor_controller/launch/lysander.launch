@@ -5,16 +5,17 @@
     <arg name="do_debug" default="false" />
     <arg name="do_lidar" default="true" />
     <arg name="do_map_server" default="true" />
+    <arg name="do_move_base" default="true" />
     <arg name="do_motor_controller" default="true" />
     <arg name="gazebo_debug" default="false" />
     <arg name="gui" default="true" />
     <arg name="headless" default="false" />
+    <arg name="map_file" default="$(find lysander)/maps/Snowberry.yaml"/>
     <arg name="paused" default="false" />
     <arg name="use_sim_time" default="true" />
     <arg unless="$(arg do_debug)" name="prefix" value="" />
     <arg     if="$(arg do_debug)" name="prefix" value="xterm -e gdb --args" />
     
-    <arg name="map_file" default="$(find lysander)/maps/Snowberry.yaml"/>
 
     
     <param 
@@ -80,12 +81,6 @@
       <param name="frame_id" value="scan" />
     </node>
 
-    <!--node
-      if="$(arg do_lidar)"
-      name="lidar_inverter_transform" 
-      pkg="tf" 
-      type="static_transform_publisher" 
-      args="0.05 0 0.25 3.14159 0 0 base_link scan 100" /-->
     <node
       if="$(arg do_lidar)"
       name="lidar_inverter_transform" 
@@ -107,40 +102,61 @@
       <remap from="map" to="/lysander/map" />
 
       <param name="base_frame_id" value="base_footprint" />
+      <!-- param name="beam_skip_distance" value="0.5" /--> <!-- 0.0 .. 2.0 -->
+      <!-- param name="beam_skip_threshold" value="0.3" /--><!-- 0.0 .. 1.0 -->
+      <!-- param name="do_beamskip" value="false" /-->      <!-- true/false -->
+      <!-- param name="first_map_only" value="false" /-->   <!-- true/false -->
       <param name="global_frame_id" value="map" />
+      <param name="gui_publish_rate" value="10.0" />        <!-- -1.0 .. 1000.0 -->  <!-- VALUE IS 1.01 ##### -->
+      <param name="kld_err" value="0.01" />                 <!-- 0.0 .. 1.0 -->
+      <param name="kld_z" value="0.99" />                   <!-- 0.0 .. 1.0 -->
+      <param name="laser_lambda_short" value="0.1" />       <!-- 0.0 .. 10.0 -->
+      <param name="laser_likelihood_max_dist" value="5.0" /><!-- 0.0 .. 20.0 -->
+      <param name="laser_max_beams" value="360" />          <!-- 0 .. 250 --> <!-- VALUE IS 250 ##### -->
+      <param name="laser_max_range" value="5.0" />          <!-- -1.0 .. 1000.0 -->
+      <param name="laser_min_range" value="0.08" />         <!-- -1.0 .. 1000.0 -->
+      <param name="laser_model_type" value="likelihood_field" /> <!-- in beam, likelihood_field, likelihood_field_prob -->
+      <!-- <param name="laser_model_type" value="beam"/--> 
+      <param name="laser_sigma_hit" value="0.2" />          <!-- 0.0 .. 10.0 -->
+      <param name="laser_z_hit" value="0.95" />             <!-- 0.0 .. 10.0 -->
+      <param name="laser_z_max" value="0.05" />             <!-- 0.0 .. 10.0 -->
+      <param name="laser_z_rand" value="0.05" />            <!-- 0.0 .. 10.0 --> <!-- VALUE IS 1.5 ##### -->
+      <param name="laser_z_short" value="0.0" />            <!-- 0.0 .. 10.0 -->
+      <param name="min_particles" value="500" />            <!-- 0 .. 1000 -->
+      <param name="max_particles" value="1000" />           <!-- 0 .. 10000 -->
+      <param name="odom_alpha1" value="0.8" />              <!-- 0.0 .. 10.0 -->
+      <param name="odom_alpha2" value="0.8" />              <!-- 0.0 .. 10.0 -->
+      <param name="odom_alpha3" value="0.2" />              <!-- 0.0 .. 10.0 -->
+      <param name="odom_alpha4" value="0.2" />              <!-- 0.0 .. 10.0 -->
+      <!--param name="odom_alpha5" value="0.2" /-->         <!-- 0.0 .. 10.0 -->
       <param name="odom_frame_id" value="odom" />
-      <param name="use_map_topic" value="true" />
-
-      <param name="odom_model_type" value="diff" />
-      <param name="transform_tolerance" value="0.5" />
-      <param name="gui_publish_rate" value="10.0" />
-      <param name="laser_max_beams" value="360" />
-      <param name="min_particles" value="500" />
-      <param name="max_particles" value="1000" />
-      <param name="kld_err" value="0.01" />
-      <param name="kld_z" value="0.99" />
-      <param name="odom_alpha1" value="0.8" />
-      <param name="odom_alpha2" value="0.8" />
-      <!-- translation std dev, m -->
-      <param name="odom_alpha3" value="0.2" />
-      <param name="odom_alpha4" value="0.2" />
-      <param name="laser_z_hit" value="0.95" />
-      <param name="laser_z_short" value="0.05" />
-      <param name="laser_z_max" value="0.05" />
-      <param name="laser_z_rand" value="0.05" />
-      <param name="laser_sigma_hit" value="0.2" />
-      <param name="laser_lambda_short" value="0.1" />
-      <param name="laser_min_range" value="0.08" />
-      <param name="laser_max_range" value="5.0" />
-      <param name="laser_model_type" value="likelihood_field" /> 
-      <!-- <param name="laser_model_type" value="beam"/> --> 
-      <param name="laser_likelihood_max_dist" value="5.0" />
-      <param name="update_min_d" value="0.1" />
-      <param name="update_min_a" value="0.1" />
-      <param name="resample_interval" value="2" />
-      <param name="recovery_alpha_slow" value="0.001" />
-      <param name="recovery_alpha_fast" value="0.1" />
+      <param name="odom_model_type" value="diff" />         <!-- in diff, diff-corrected, omni, omni-corrected -->
+      <param name="resample_interval" value="2" />          <!-- 0 .. 20 -->
+      <param name="recovery_alpha_fast" value="0.1" />      <!-- 0.0 .. 1.0 -->
+      <param name="recovery_alpha_slow" value="0.001" />    <!-- 0.0 .. 0.5 -->
+      <!-- param name="save_pose_rate" value="0.5" /-->     <!-- -1.0 .. 10.0 -->
+      <!--param name="tf_broadcast" value="true" /-->       <!-- true/false -->
+      <param name="transform_tolerance" value="0.5" />      <!-- 0.0 .. 2.0 -->
+      <param name="update_min_a" value="0.1" />             <!-- 0.0 .. 6.28318530718 -->
+      <param name="update_min_d" value="0.1" />             <!-- 0.0 .. 5.0 -->
+      <param name="use_map_topic" value="true" />           <!-- true/false -->
     </node>
+
+  <node 
+    if="$(arg do_move_base)"
+    pkg="move_base" 
+    type="move_base" 
+    respawn="false" 
+    name="move_base" 
+    output="screen">
+    <remap from="cmd_vel" to="/lysander/diff_drive_controller/cmd_vel" />
+
+    <rosparam file="$(find lysander)/param/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find lysander)/param/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find lysander)/param/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find lysander)/param/global_costmap_params.yaml" command="load" />
+    <rosparam file="$(find lysander)/param/base_local_planner_params.yaml" command="load" />
+  </node>
 
   </group>
 </launch>
