@@ -3,12 +3,12 @@ global_costmap:
   # footprint_padding: 0.01
   global_frame: 'map'
   height: 6.0
-  inflation_radius: 0.5
-  # publish_frequency: 1.0
+  inflation_radius: 0.25
+  publish_frequency: 2.0
   resolution: 0.05
   robot_base_frame: 'base_link'
   # robot_radius: 0.0
-  rolling_window: true
+  rolling_window: false
   static_map: true
   # transform_tolerance: 2.0 
   update_frequency: 5.0
@@ -45,7 +45,8 @@ global_costmap:
   static_map:
     enabled: true               # true/false
     cost_scaling_factor: 10.0
-    inflation_radius: 0.26
+    inflation_radius: 0.25
+    map_topic: /lysander/map
     track_unknown_space: true
     unknown_cost_value: 253
     
