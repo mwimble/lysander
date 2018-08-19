@@ -2,7 +2,7 @@ local_costmap:
   # robot_radius: 0.23
 
   # always_send_full_costmap: false
-  # footprint_padding: 0.01
+  footprint_padding: 0.1
   global_frame: 'odom'
   height: 6.0
   publish_frequency: 2.0
@@ -15,13 +15,22 @@ local_costmap:
   width: 6.0
 
   plugins:
+    - { name: 'static_map', type: 'costmap_2d::StaticLayer' }
     - { name: 'obstacle_layer', type: 'costmap_2d::ObstacleLayer' }
-    - { name: 'inflation_layer', type: 'costmap_2d::InflationLayer' }
+  #  - { name: 'inflation_layer', type: 'costmap_2d::InflationLayer' }
+
+  static_map:
+    enabled: true               # true/false
+    cost_scaling_factor: 10.0
+    inflation_radius: 0.15
+    map_topic: /lysander/map
+    track_unknown_space: true
+    unknown_cost_value: 253
 
   inflation_layer:
     enabled: true               # true/false
     cost_scaling_factor: 10.0   # 0.0 .. 100
-    inflation_radius: 0.25      # 0.0 .. 50.0
+    inflation_radius: 0.15      # 0.0 .. 50.0
     #inflate_unknown: false
 
   obstacle_layer:
@@ -40,3 +49,4 @@ local_costmap:
     #raytrace_range: 6.0
     #sensor_frame: ""
     #topic
+

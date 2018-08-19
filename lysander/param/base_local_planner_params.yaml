@@ -1,6 +1,35 @@
-# base_global_planner: 'navfn/NavfnROS'
-# base_local_planner: 'dwa_local_planner/DWAPlannerROS'
-
+base_local_planner: 'dwa_local_planner/DWAPlannerROS'
+DWAPlannerROS:
+  acc_lim_th: 3.2                 # The rotational acceleration limit of the robot in radians/sec^2
+  acc_lim_x: 2.5                  # The x acceleration limit of the robot in meters/sec^2
+  acc_lim_y: 2.5                  # The y acceleration limit of the robot in meters/sec^2
+  controller_frequency: 10        # The frequency at which this controller will be called in Hz. (20)
+  forward_point_distance: 0.325   # The distance from the center point of the robot to place an additional scoring point, in meters
+  goal_distance_bias: 24.0        # The weighting for how much the controller should attempt to reach its local goal, also controls speed
+  latch_xy_goal_tolerance: true   # If goal tolerance is latched, if the robot ever reaches the goal xy location it will simply rotate in place, even if it ends up outside the goal tolerance while it is doing so. (false)
+  max_rot_vel: 1.0                # The absolute value of the maximum rotational velocity for the robot in rad/s
+  max_scaling_factor: 1.17        # The maximum factor to scale the robot's footprint by (0.2)
+  max_trans_vel: 0.55             # The absolute value of the maximum translational velocity for the robot in m/s
+  max_vel_x: 0.55                 # The maximum x velocity for the robot in m/s.
+  max_vel_y: 0.1                  # The maximum y velocity for the robot in m/s
+  min_rot_vel: 0.4                # The absolute value of the minimum rotational velocity for the robot in rad/s
+  min_trans_vel: 0.1              # The absolute value of the minimum translational velocity for the robot in m/s
+  min_vel_x: 0.1                  # The minimum x velocity for the robot in m/s, negative for backwards motion.
+  min_vel_y: -0.1                 # The minimum y velocity for the robot in m/s
+  occdist_scale: 0.9              # The weighting for how much the controller should attempt to avoid obstacles (0.01)
+  oscillation_reset_dist: 0.05    # How far the robot must travel in meters before oscillation flags are reset
+  path_distance_bias:  50.0       # The weighting for how much the controller should stay close to the path it was given (32.0)
+  publish_cost_grid: false        # Whether or not to publish the cost grid that the planner will use when planning.
+  prune_plan: true                # Defines whether or not to eat up the plan as the robot moves along the path
+  scaling_speed: 0.25             # The absolute value of the velocity at which to start scaling the robot's footprint, in m/s
+  sim_granularity: 0.025          # The step size, in meters, to take between points on a given trajectory
+  sim_time: 1.7                   # The amount of time to forward-simulate trajectories in seconds
+  stop_time_buffer: 0.5           # The amount of time that the robot must stop before a collision in order for a trajectory to be considered valid in seconds (0.2)
+  vth_samples: 20                 # The number of samples to use when exploring the theta velocity space
+  vx_samples: 10                  # The number of samples to use when exploring the x velocity space (3)
+  vy_samples: 10                  # The number of samples to use when exploring the y velocity space
+  xy_goal_tolerance: 0.10         # The tolerance in meters for the controller in the x & y distance when achieving a goal
+  yaw_goal_tolerance: 0.1         # The tolerance in radians for the controller in yaw/rotation when achieving its goal (0.05)
 
 # planner_frequency: 2.0
 # controller_frequency: 1.5
@@ -18,87 +47,87 @@
 # oscillation_timeout: 9.0
 # oscillation_distance: 0.25
 
-TrajectoryPlannerROS:
-  acc_lim_theta: 3.2              # 0.0 .. 20.0
-  acc_lim_x: 2.5                  # 0.0 .. 20.0
-  acc_lim_y: 2.5                  # 0.0 .. 20.0
-  # angular_sim_granularity: 0.025# 0.0 .. 1.57079632679
-  # dwa: false                    # true/false
-  # escape_reset_dist: 0.1        # 0.0 .. 5.0
-  # escape_reset_theta: 1.57079632679 # 0.0 .. 5.0
-  # escape_vel: -0.1              # -2.0 .. 2.0
-  gdist_scale: 2.0                # 0.0 .. 5.0
-  # heading_lookahead: 0.325      # 0.0 .. 5.0
-  # heading_scoring: false        # true/false
-  # heading_scoring_timestep: 0.1 # 0.0 .. 1.0
-  holonomic_robot: false          # true/false
-  max_vel_x: 0.3                  # 0.0 .. 20.0
-  min_vel_x: 0.1                  # 0.0 .. 20.0
-  max_vel_theta: 1.0              # 0.0 .. 20.0
-  #min_vel_theta: -1.0            # 0.0 .. 20.0
-  min_in_place_vel_theta: 0.4     # 0.0 .. 20.0
-  # occdist_scale: 0.01           # 0.0 .. 5.0
-  # oscillation_reset_dist: 0.05  # 0.0 .. 5.0
-  pdist_scale: 2.0                # 0.0 .. 5.0
-  publish_cost_grid_pc: true
-  # sim_granularity: 0.025        # 0.0 .. 5.0
-  #sim_time: 1.7                  # 0.0 .. 10.0
-  # simple_attractor: false       # true/false
-  #vtheta_samples: 20             # 1..300
-  #vx_samples: 20                 # 1 .. 300
-  #y_vels: -0.3,-0.1,0.1,-0.3
+# TrajectoryPlannerROS:
+#   acc_lim_theta: 3.2              # 0.0 .. 20.0
+#   acc_lim_x: 2.5                  # 0.0 .. 20.0
+#   acc_lim_y: 2.5                  # 0.0 .. 20.0
+#   # angular_sim_granularity: 0.025# 0.0 .. 1.57079632679
+#   # dwa: false                    # true/false
+#   # escape_reset_dist: 0.1        # 0.0 .. 5.0
+#   # escape_reset_theta: 1.57079632679 # 0.0 .. 5.0
+#   # escape_vel: -0.1              # -2.0 .. 2.0
+#   gdist_scale: 2.0                # 0.0 .. 5.0
+#   # heading_lookahead: 0.325      # 0.0 .. 5.0
+#   # heading_scoring: false        # true/false
+#   # heading_scoring_timestep: 0.1 # 0.0 .. 1.0
+#   holonomic_robot: false          # true/false
+#   max_vel_x: 0.3                  # 0.0 .. 20.0
+#   min_vel_x: 0.1                  # 0.0 .. 20.0
+#   max_vel_theta: 1.0              # 0.0 .. 20.0
+#   #min_vel_theta: -1.0            # 0.0 .. 20.0
+#   min_in_place_vel_theta: 0.4     # 0.0 .. 20.0
+#   # occdist_scale: 0.01           # 0.0 .. 5.0
+#   # oscillation_reset_dist: 0.05  # 0.0 .. 5.0
+#   pdist_scale: 2.0                # 0.0 .. 5.0
+#   publish_cost_grid_pc: true
+#   # sim_granularity: 0.025        # 0.0 .. 5.0
+#   #sim_time: 1.7                  # 0.0 .. 10.0
+#   # simple_attractor: false       # true/false
+#   #vtheta_samples: 20             # 1..300
+#   #vx_samples: 20                 # 1 .. 300
+#   #y_vels: -0.3,-0.1,0.1,-0.3
   
-  # DWAPlannerROS:
+#   # DWAPlannerROS:
 
-  # max_trans_vel: 0.30 #0.15
-  # min_trans_vel: 0.03 #0.015
+#   # max_trans_vel: 0.30 #0.15
+#   # min_trans_vel: 0.03 #0.015
 
-  # max_vel_x: 0.30 #0.15
-  # min_vel_x:  -0.14 #-0.07 
+#   # max_vel_x: 0.30 #0.15
+#   # min_vel_x:  -0.14 #-0.07 
 
-  # max_vel_y: 0.01
-  # min_vel_y: -0.01
+#   # max_vel_y: 0.01
+#   # min_vel_y: -0.01
 
-  # max_rot_vel: 0.5
-  # min_rot_vel: 0.01 #0.002
+#   # max_rot_vel: 0.5
+#   # min_rot_vel: 0.01 #0.002
 
-  # acc_lim_x: 0.1
-  # acc_lim_y: 0.0
-  # acc_lim_theta: 0.5
-  # acc_lim_trans: 0.1
+#   # acc_lim_x: 0.1
+#   # acc_lim_y: 0.0
+#   # acc_lim_theta: 0.5
+#   # acc_lim_trans: 0.1
 
-  # xy_goal_tolerance: 0.075 
-  # yaw_goal_tolerance: 0.25
-  # latch_xy_goal_tolerance: true
-  # prune_plan: true
+#   # xy_goal_tolerance: 0.075 
+#   # yaw_goal_tolerance: 0.25
+#   # latch_xy_goal_tolerance: true
+#   # prune_plan: true
 
-  # trans_stopped_vel: 0.1
-  # rot_stopped_vel: 0.1
+#   # trans_stopped_vel: 0.1
+#   # rot_stopped_vel: 0.1
 
-  # sim_time: 3.0
-  # sim_granularity:  0.025
+#   # sim_time: 3.0
+#   # sim_granularity:  0.025
 
-  # angular_sim_granularity: 0.015
+#   # angular_sim_granularity: 0.015
   
-  # path_distance_bias: 50.0
-  # goal_distance_bias: 30.0
-  # occdist_scale: 0.9
+#   # path_distance_bias: 50.0
+#   # goal_distance_bias: 30.0
+#   # occdist_scale: 0.9
 
-  # stop_time_buffer: 1.0
+#   # stop_time_buffer: 1.0
 
-  # oscillation_reset_dist: 0.05
-  # oscillation_reset_angle: 0.3
+#   # oscillation_reset_dist: 0.05
+#   # oscillation_reset_angle: 0.3
 
-  # forward_point_distance: 0.433
+#   # forward_point_distance: 0.433
 
-  # scaling_speed: 0.5
-  # max_scaling_factor: 1.17 
+#   # scaling_speed: 0.5
+#   # max_scaling_factor: 1.17 
   
-  # vx_samples: 20
-  # vy_samples: 10
-  # vth_samples: 20
+#   # vx_samples: 20
+#   # vy_samples: 10
+#   # vth_samples: 20
 
-  # use_dwa: true
+#   # use_dwa: true
 
 
   
