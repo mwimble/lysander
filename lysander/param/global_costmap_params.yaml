@@ -2,11 +2,8 @@ global_costmap:
   # always_send_full_costmap: false
   global_frame: '/map'
   height: 6.0
-  # inflation_radius: 0.15
   publish_frequency: 2.0
-  # resolution: 0.05
   robot_base_frame: 'base_link'
-  # robot_radius: 0.0
   rolling_window: false
   static_map: true
   # transform_tolerance: 2.0 
@@ -25,17 +22,16 @@ global_costmap:
     combination_method: 1   # 0 - overwrite, 1 - Maximum
     enabled: true
   
-    
 #base_global_planner: "carrot_planner/CarrotPlanner"
 base_global_planner: "global_planner/GlobalPlanner"
 GlobalPlanner:                                  # Also see: http://wiki.ros.org/global_planner
   allow_unknown: true                           # Allow planner to plan through unknown space. (true)
                                                 # Needs to have track_unknown_space: true in the obstacle / voxel layer (in costmap_commons_param) to work
 
-  cost_factor: 3.0                              # Factor to multiply each cost from costmap by (dynamic reconfigure). (3.0)
+  cost_factor: 0.55                             # Factor to multiply each cost from costmap by (dynamic reconfigure). (3.0)
   default_tolerance: 0.0                        # If goal in obstacle, plan to the closest point in radius default_tolerance, (0.0)
   lethal_cost: 253                              # Lethal Cost (dynamic reconfigure). (253)
-  neutral_cost: 50                              # Neutral Cost (dynamic reconfigure). (50)
+  neutral_cost: 66                              # Neutral Cost (dynamic reconfigure). (50)
   old_navfn _behavior: false                    # Exactly mirror behavior of navfn, use defaults for other boolean parameters. (false)
   orientation_mode: 0                           # How to set the orientation of each point 
                                                 # (None=0, Forward=1, Interpolate=2, ForwardThenInterpolate=3, Backward=4, 
@@ -50,9 +46,9 @@ GlobalPlanner:                                  # Also see: http://wiki.ros.org/
   use_quadratic: true                           # Use the quadratic approximation of the potential. Otherwise, use a simpler calculation. (true)
   visualize_potential: false                    # Specifies whether or not to visualize the potential area computed via a PointCloud2. (false)
   
-  # Not sure if these are used
-  planner_window_x: 0.0                         # default 0.0
-  planner_window_y: 0.0                         # default 0.0
-  publish_scale: 100                            # Scale by which the published potential gets multiplied, default 100
-  planner_costmap_publish_frequency: 0.0        # default 0.0
+  # # Not sure if these are used
+  # planner_window_x: 0.0                         # default 0.0
+  # planner_window_y: 0.0                         # default 0.0
+  # publish_scale: 100                            # Scale by which the published potential gets multiplied, default 100
+  # planner_costmap_publish_frequency: 0.0        # default 0.0
   

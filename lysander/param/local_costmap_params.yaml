@@ -12,5 +12,6 @@ local_costmap:
   width: 6.0
 
   plugins:
+    - { name: 'static_map', type: 'costmap_2d::StaticLayer' }
     - { name: 'obstacle_layer', type: 'costmap_2d::ObstacleLayer' }
     - { name: 'inflation_layer', type: 'costmap_2d::InflationLayer' }
